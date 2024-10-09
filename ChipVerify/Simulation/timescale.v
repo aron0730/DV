@@ -25,20 +25,6 @@ module tb;
     end
 endmodule
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // `timescale <time_unit> / <time_precision>
 
 // // Example
