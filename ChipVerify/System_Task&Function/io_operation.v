@@ -102,3 +102,42 @@ endmodule
 /*
 $fgets：從檔案中讀取一行資料並將其存入變數 str。該函數會持續讀取，直到變數 str 被填滿或遇到換行符或遇到檔案結尾（EOF）。
 */
+
+/* ------Multiple arguments to fdisplay------ */
+module tb2;
+    reg [3:0] a, b, c, d;
+    reg [8*30 : 0] str;
+    integer fd;
+
+    initial begin
+        a = 4'ha;
+        b = 4'hb;
+        c = 4'hc;
+        d = 4'bd;
+
+        fd = $fopen("my_file.txt", "w");
+        $fdisplay(fd, a, b, c, d);
+        // sim log : 10111213
+        
+        $fclose(fd);
+    end
+endmodule
+
+/* ------Formatting data to a string------ */
+
+module tb3;
+    reg [8*19 : 0]str;
+    reg [3:0] a, b;
+
+    initial begin
+        a = 4'hA;
+        b = 4'hB;
+
+        // Format 'a' and 'b' into a string given
+        // by the format, and store into 'str' variable
+        $sformat(str, "a=%0d b=0x%0h", a, b);
+        $display("%0x", str);
+        // sim log : a=10 b=0xb
+    end
+endmodule
+
