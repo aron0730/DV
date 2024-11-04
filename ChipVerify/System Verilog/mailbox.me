@@ -1,0 +1,69 @@
+在 SystemVerilog 驗證環境中，mailbox 是一種用來在不同進程或模組間進行同步和數據傳遞的特殊資料結構。它類似於訊息隊列，支援多進程之間的無縫溝通，並且可以緩衝數據。mailbox 的用途廣泛，特別適合於需要異步操作的場景，例如 sequencer 和 driver 之間的數據傳遞。
+
+mailbox 的用途
+數據緩衝：
+
+mailbox 可以作為一個緩衝區，允許一個進程將數據放入，另一個進程在需要時再取出，避免需要立即處理數據的情況。
+這對於驗證環境中特定模組的操作不同步非常有用，例如 sequencer 生成數據的速度可能與 driver 消耗數據的速度不同。
+進程間的同步：
+
+mailbox 提供了一種阻塞的機制，取數據的進程會等待直到 mailbox 有數據為止，這樣可以保證 driver 不會在 mailbox 空時嘗試取數據。
+例如，當 driver 使用 get() 方法時，如果 mailbox 裡沒有數據，driver 會阻塞等待直到有數據放入。
+減少模組間的耦合：
+
+通過使用 mailbox，我們可以將數據傳遞從「直接傳遞」改為「間接傳遞」，減少模組之間的依賴性。例如，sequencer 和 driver 之間無需直接相連，僅通過 mailbox 來通信，提升了系統的可擴展性和模組化。
+mailbox 的基本操作
+建立 mailbox：
+
+可以使用 mailbox 的建構子來創建一個 mailbox 實例，並指定其容量。
+若不指定容量，則默認為無限容量。
+systemverilog
+複製程式碼
+mailbox drv_mbx = new(10);  // 創建容量為 10 的 mailbox
+放入數據 (put)：
+
+使用 put() 方法將數據放入 mailbox，這是一個阻塞操作，如果 mailbox 滿了，放入進程會等待直到有空位。
+systemverilog
+複製程式碼
+drv_mbx.put(item);  // 將 item 放入 drv_mbx
+取出數據 (get)：
+
+使用 get() 方法從 mailbox 取出數據，如果 mailbox 空，則取數據的進程會等待直到有數據放入。
+systemverilog
+複製程式碼
+drv_mbx.get(item);  // 從 drv_mbx 中取出一個 item
+非阻塞取數據 (try_get)：
+
+try_get() 是非阻塞操作，如果 mailbox 有數據，取出數據並返回 1；若沒有數據，則不會阻塞，直接返回 0。
+systemverilog
+複製程式碼
+if (drv_mbx.try_get(item)) begin
+    // 處理 item
+end
+使用技巧
+選擇合適的容量：
+
+mailbox 的容量應根據系統需求設置，過小的容量可能導致生產方阻塞，而過大的容量可能會增加內存使用。
+如果容量需求不確定，可以選擇無限容量（默認）。
+合理使用阻塞和非阻塞操作：
+
+put() 和 get() 是阻塞操作，適合於需要強同步的場景，但可能導致進程等待；try_get() 和 try_put() 是非阻塞操作，適合需要靈活控制流程的場景。
+使用監視 (monitor) 記錄：
+
+在 driver 或 sequencer 中可以通過 $display 等方法記錄每次 put 和 get 操作的細節，便於 debug。
+設置合理的延遲：
+
+如果 mailbox 的操作頻繁，對操作加上少量延遲（如 #1;）可以減少模擬器的負擔，防止過度阻塞。
+注意事項
+避免 mailbox 資源浪費：
+
+過多未處理的數據在 mailbox 裡會浪費資源。可以在設計中監控 mailbox 的大小，避免生產過多無效數據。
+阻塞風險：
+
+如果 mailbox 滿而生產方無法放入數據，或者 mailbox 空而消費方無法取出數據，可能會導致阻塞或死鎖。
+使用 try_get() 或 try_put() 可以減少阻塞風險。
+隨機測試中的處理：
+
+在隨機測試中，數據量的生產和消費可能不平衡，導致 mailbox 過度填充或清空，應確保 sequencer 和 driver 之間的數據流量一致。
+小結
+mailbox 是 SystemVerilog 驗證環境中的重要工具，適合於模組間的數據緩衝和同步。合理設置 mailbox 的容量，選擇適當的操作方式，並謹慎處理阻塞情況，可以讓 mailbox 更高效地在驗證環境中發揮作用。
