@@ -63,3 +63,13 @@ struct {
 
 // Assigning an array of structures
 s_money purse [1:0] = '{'{2, 4.25}, '{7, 1.5}};
+
+
+// What are fixed size arrays?
+module tb;
+    // The following two representations of fixed arrays are the same
+    // myFIFO and urFIFO have 8 locations where each location can hold an integer value
+    // 0, 1 | 0, 2 | 0, 3 | ... | 0, 7
+
+    
+endmodule
