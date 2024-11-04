@@ -1,0 +1,39 @@
+virtual task 中的 virtual 關鍵字主要用於面向物件導向的 SystemVerilog 驗證環境中，表示該 task 是虛擬的，可以在繼承類別中覆蓋 (override) 其實現。這種設計的核心概念是「多態性」，即允許基類中的 task 定義不同的行為，而子類可以根據具體需要進行重新定義。以下是 virtual task 的主要意義：
+
+1. 支援多態性
+當使用 virtual 關鍵字時，task 或 function 可以在子類中進行覆蓋。在執行時，SystemVerilog 會根據具體的物件類型選擇調用適當的實現。例如，在一個基類中定義了一個虛擬 task，不同的子類可以實現不同的行為，而調用該 task 時會自動根據具體的物件類型選擇正確的實現。
+
+2. 支援抽象化和可擴展性
+在驗證環境中，virtual task 允許我們在基類中定義通用的行為接口，而不強制具體實現。這樣可以使驗證環境具有高度的靈活性和擴展性。比如，我們可以在基類環境 (env 類) 中定義一個 virtual task run()，並讓具體的環境配置（不同子類）實現自己的行為。這使得測試環境可以適應不同的設計需求。
+
+3. 支援重用
+通過 virtual task，我們可以設計更模組化和可重用的測試平台。例如，在基類定義了通用的 run() 邏輯，並在不同的繼承類別中覆蓋和擴展它，使其適應不同的驗證場景。這種重用機制可以大幅降低測試環境的重複建構成本。
+
+範例說明
+假設我們有一個基類 env，並在其中定義了一個 virtual task run()。然後我們可以有不同的子類 (如 env_A 和 env_B) 覆蓋 run()，實現不同的行為。
+
+class env;
+    virtual task run();
+        // 基類的默認行為
+        $display("Running base environment...");
+    endtask
+endclass
+
+class env_A extends env;
+    virtual task run();
+        // 子類 A 的特定行為
+        $display("Running environment A...");
+    endtask
+endclass
+
+class env_B extends env;
+    virtual task run();
+        // 子類 B 的特定行為
+        $display("Running environment B...");
+    endtask
+endclass
+
+在上述範例中，如果我們在測試中創建 env_A 或 env_B 的物件並調用 run()，SystemVerilog 會選擇相應的覆蓋版本，而不是基類 env 的 run()。這就是 virtual 的多態性，允許靈活替換行為。
+
+總結
+virtual 的意義在於允許子類重新定義和實現基類中的 task，達成多態性、抽象化、重用和可擴展性，這是面向物件設計的核心優勢之一。

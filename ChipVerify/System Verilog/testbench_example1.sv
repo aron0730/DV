@@ -237,3 +237,140 @@ class scoreboard;
     endtask
 endclass
 
+// Environment
+// The environment is a container object simply to hold all verification
+// components together. This environment can then be reused later and all
+// components in it would be automatically connected and available for use
+// This is an environment without a generator.
+class env;
+    driver              d0;         // Driver to design  
+    monitor             m0;         // Monitor for design
+    scoreboard          s0;         // Scoreboard connected to monitor
+    mailbox             scb_mbx;    // Top level mailbox for Scoreboard <-> Monitor
+    virtual reg_if      vif;        // Virtual interface handle
+
+    // Instantiate all testbench components
+    function new();
+        d0 = new;
+        m0 = new;
+        s0 = new;
+        scb_mbx = new();
+    endfunction
+
+    // Assign handles and start all components so that
+    // they all become active and wait for transactions to be 
+    // available
+    virtual task run();
+        d0.vif = vif;
+        m0.vif = vif;
+        m0.scb_mbx = scb_mbx;
+        s0.scb_mbx = scb_mbx;
+
+        fork
+            s0.run();
+            d0.run();
+            m0.run();
+        join_any
+    endtask
+endclass
+
+/*
+driver do          ：driver 負責從 mailbox 中獲取 transaction 並驅動到設計的介面上。
+monitor m0         ：monitor 用來從設計中捕獲 transaction 並將其送到 scoreboard 進行驗證。
+scoreboard s0      ：scoreboard 用來檢查數據完整性，確保寫入和讀取的數據一致。
+mailbox scb_mbx    ：mailbox 是 monitor 和 scoreboard 之間的通信通道，允許 monitor 傳遞 transaction 給 scoreboard。
+virtual reg_if vif ：虛擬介面，用於將虛擬介面 handle 傳遞給元件，使得它們可以互相通信。
+*/
+
+
+// Test
+// An environment without the generator and hence the stimulus should be
+// written in the test.
+class test;
+    env e0;
+    mailbox drv_mbx;
+
+    function new();
+        drv_mbx = new();
+        e0 = new();
+    endfunction
+
+    virtual task run();
+        e0.d0.drv_mbx = drv_mbx;
+
+        fork
+            e0.run();
+        join_none
+
+        apply_stim();
+    endtask
+
+    virtual task apply_stim();
+        reg_item item;
+        $display("T=%0t [Test] Starting stimulus ...", $time);
+        item = new;
+        item.randomize() with { addr == 8'haa; wr == 1; };
+        drv_mbx.put(item);
+
+        item = new;
+        item.randomize() with { addr == 8'haa; wr == 0; };
+        drv_mbx.put(item);
+    endtask
+endclass
+
+// Interface
+// The interface allows verification components to access DUT signals
+// using a virtual interface handle
+interface reg_if (input bit clk);
+    logic rstn;
+    logic [7:0] addr;
+    logic [15:0] wdata;
+    logic [15:0] rdata;
+    logic wr;
+    logic sel;
+    logic ready;
+endinterface
+
+module tb;
+    reg clk;
+
+    always #10 clk = ~clk;
+
+    reg_if _if (clk);
+
+    reg_ctrl u0 (.clk(clk), 
+                 .addr (_if.addr), 
+                 .rstn(_if.rstn), 
+                 .sel(_if.sel), 
+                 .wr(_if.wr), 
+                 .wdata(_if.wdata), 
+                 .rdata(_if.rdata), 
+                 .ready(_if.ready));
+
+    initial begin
+        test t0;
+        clk <= 0;
+        _if.rstn <= 0;
+        _if.sel <= 0;
+        #20 _if.rstn <= 1;
+
+        t0 = new;
+        t0.e0.vif =_if;
+        t0.run();
+
+        // Once the main stimulus is over, wait for some time
+        // until all transactions are finished and then end
+        // simulation. Note that $finish is required bacause
+        // there are components that are running forever in
+        // the background like clk, monitor, driver, etc
+        #200 $finish;
+    end
+
+    // Simulator dependent system tasks that can be used to
+    // dump simulation waves.
+    initial begin
+        $dumpvars;
+        $dumpfile("dump.vcd");
+    end
+
+endmodule
