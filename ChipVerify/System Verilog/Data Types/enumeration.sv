@@ -106,3 +106,82 @@ color4 = 6, name = RED1
 color5 = 0, name = YELLOW3
 color6 = 5, name = WHITE4
 */
+
+
+/*
+first()
+    說明：回傳列舉的第一個成員的值。
+    用途：當需要從列舉型別的第一個值開始操作時可以使用。
+
+last()
+    說明：回傳列舉的最後一個成員的值。
+    用途：有助於迭代結尾或檢查列舉的範圍。
+
+next(int unsigned N = 1)
+    說明：回傳當前值之後第 N 個列舉值。預設 N = 1，即下一個值。
+    用途：用於遍歷列舉值的後續項目，或跳過指定數量的列舉值。
+
+prev(int unsigned N = 1)
+    說明：回傳當前值之前第 N 個列舉值。預設 N = 1，即前一個值。
+    用途：用於遍歷列舉值的前續項目，或向前跳過指定數量的列舉值。
+
+num()
+    說明：回傳列舉中的元素數量。
+    用途：可以用於迴圈遍歷或檢查列舉的大小。
+
+name()
+    說明：回傳列舉值的字串表示。
+    用途：非常適合在除錯或記錄中使用，以便顯示列舉值的名稱。
+*/
+
+// GREEN = 0, YELLOW = 1, RED = 2, BLUE = 3
+typedef enum {GREEN, YELLOW, RED, BLUE} colors;
+
+module tb;
+    initial begin
+        colors color;
+
+        // Assign current value of color to YELLOW
+        color = YELLOW;
+
+        $display("color.first() = %0d", color.first());     // First value is GREEN = 0
+        $display("color.last() = %0d", color.last());       // Last value is BLUE = 3
+        $display("color.next() = %0d", color.next());       // Next value is RED = 2
+        $display("color.prev() = %0d", color.prev());       // Previous value is GREEN = 0
+        $display("color.num() = %0d", color.num());         // Total number of enum = 4
+        $display("color.name() = %s", color.name());        // Name of the current enum
+    end
+endmodule
+
+/*
+sim log :
+color.first() = 0
+color.last()  = 3
+color.next()  = 2
+color.prev()  = 0
+color.num()   = 4
+color.name()  = YELLOW
+*/
+
+typedef enum bit [1:0] {RED, YELLOW, GREEN} e_light;
+
+module tb;
+    e_light light;
+
+    initial begin
+        light = GREEN;
+        $display("light = %s", light.name());
+
+        // Invalid because of strict typing rules
+        light = 0;
+        $display("light = %s", lignt.name());
+
+        // OK when explicitly case
+        light = e_light'(1);
+        $display("light = %s", light.name());
+
+        // OK light is auto-case to integer
+        if (light == RED | light == 2)
+            $display("light is now %s", light.name());
+    end
+endmodule
