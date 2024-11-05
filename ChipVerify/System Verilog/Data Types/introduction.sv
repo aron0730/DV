@@ -70,6 +70,49 @@ module tb;
     // The following two representations of fixed arrays are the same
     // myFIFO and urFIFO have 8 locations where each location can hold an integer value
     // 0, 1 | 0, 2 | 0, 3 | ... | 0, 7
+    int myFIFO [0:7];
+    int urFIFO [8];
 
-    
+    // Multi-dimensional arrays
+    // 0,0 | 0,1 | 0,2
+    // 1,0 | 1,1 | 1,2
+    int myArray [2][3];
+
+    initial begin
+        myFIFO[5] = 32'hface_cafe;  // Assign value to location 5 in 1D array
+        myArray [1][1] = 7;         // Assign to location 1,1 in 2D array
+
+        // Iterate through each element in the array
+        foreach (myFIFO[i])
+            $display ("myFIFO[%0d] = 0x%0h", i, myFIFO[i]);
+
+        // Iterate through each element in the multidimensional array
+        foreach (myArray[i])
+            foreach (myArray[i][j])
+                $display ("myArray[%0d][%0d] = %0d", i, j, myArray[i][j]);
+    end 
 endmodule
+
+// void data-type
+function void display();
+    $display ("Am not going to return any value");
+endfunction
+
+task void display();
+    #10 $display("Me neither");
+endtask
+
+// Conversion of real to int
+// Casting will perform rounding(四捨五入)
+int'(2.0 * 3.0)
+shortint'({8'hab, 8'hef});
+
+// Using system tasks will truncate
+integer $rtoi(real_val);
+real    $itor(int_val);
+
+
+/*
+類型轉換如 int'() 和 shortint'() 會進行四捨五入。
+系統任務 $rtoi 用於截斷小數部分，而 $itor 用於將整數轉換為實數。 這種靈活性讓設計者可以根據需要選擇四捨五入或截斷來進行數據轉換。
+*/
