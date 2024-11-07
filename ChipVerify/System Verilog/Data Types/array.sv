@@ -483,3 +483,232 @@ endmodule
 /* sim log :
 fruits[apple][0] = 4
 fruits[apple][1] = 5 */
+
+
+/********************Array Manipulation********************/
+
+// Mandatory 'with' clause
+
+/*
+find()：返回所有滿足條件的元素。
+find_index()：返回所有滿足條件的元素的索引。
+find_first()：返回第一個滿足條件的元素。
+find_first_index()：返回第一個滿足條件的元素的索引。
+find_last()：返回最後一個滿足條件的元素。
+find_last_index()：返回最後一個滿足條件的元素的索引。
+*/
+
+module tb;
+    int array[9] = '{4, 7, 2, 5, 7, 1, 6, 3, 1};
+    int res[$];
+
+    initial begin
+        res = array.find(x) with (x > 3);
+        $display("find(x)       :%p", res);
+
+        res = array.find_index with (item == 4);
+        $display("find_index    :%p", res);
+
+        res = array.find_first with (item < 5 & item >= 3);
+        $display("find_first    :%p", res);
+
+        res = array.find_first_index(x) with (x > 5);
+        $display("find_first_index: %p", res);
+
+        res = array.find_last with (item <= 7 & item > 3);
+        $display("find_last     :%p", res);
+
+        res = array.find_last_index(x) with (x < 3);
+        $display("find_last_index   :%p", res);
+    end
+endmodule
+/*
+find(x)         : '{4, 7, 5, 7, 6}
+find_index      : res[0] = 4
+find_first      : '{4}
+find_first_index: '{1}
+find_last       : '{6}
+find_last_index : '{8}
+*/
+
+
+// Optional 'with' clause
+/*
+min()：
+    功能：返回陣列中最小值的元素。如果使用 with 子句，可以指定判斷的表達式。
+    範例：array.min() 會找到最小值的元素，array.min(x * x) 則會找到經過 x * x 計算後的最小值。
+
+max()：
+    功能：返回陣列中最大值的元素。若使用 with 子句，則基於 with 表達式進行比較。
+    範例：array.max() 找到最大值的元素，而 array.max(x - 1) 則找出在 x - 1 計算後的最大值。
+
+unique()：
+    功能：返回陣列中所有唯一值的元素。若使用 with 子句，則基於表達式找出唯一的結果。
+    範例：array.unique() 列出所有唯一值的元素，array.unique(x % 10) 则找出 x % 10 結果唯一的元素。
+
+unique_index()：
+    功能：返回陣列中所有唯一值的索引。使用 with 子句時，可以依表達式找出唯一的索引。
+    範例：array.unique_index() 返回所有唯一值的索引，array.unique_index(x / 2) 則根據 x / 2 的唯一結果返回索引。 */
+
+module tb;
+    int array[9] = '{4, 7, 2, 5, 7, 1, 6, 3, 1};
+    int res[$];
+
+    initial begin
+        res = array.min();
+        $display("min       :%p", res);
+
+        res = array.max();
+        $display("max       :%p", res);
+
+        res = array.unique();
+        $display("unique    :%p", res);
+
+        res = array.unique(x) with (x < 3);
+        $display("unique_index :%p", res); // ?
+    end 
+endmodule
+
+// Array Ordering Methods
+
+/*
+
+reverse()
+    功能：將陣列的元素順序反轉。
+    用途：用於將陣列從頭到尾的排列順序變成從尾到頭。
+    例子：
+        int array[5] = '{1, 2, 3, 4, 5};
+        array.reverse();
+        // 結果：array = '{5, 4, 3, 2, 1}
+
+sort()
+    功能：將陣列按照遞增順序排序。
+    選項：可以使用 with 子句指定排序條件（通常在多維陣列或結構中使用）。
+    用途：將陣列的值從小到大排序。
+    例子：
+        int array[5] = '{5, 3, 4, 1, 2};
+        array.sort();
+        // 結果：array = '{1, 2, 3, 4, 5}
+rsort()
+    功能：將陣列按照遞減順序排序。
+    選項：可以使用 with 子句指定排序條件。
+    用途：將陣列的值從大到小排序。
+    例子：
+        int array[5] = '{5, 3, 4, 1, 2};
+        array.rsort();
+        // 結果：array = '{5, 4, 3, 2, 1}
+
+shuffle()
+    功能：隨機打亂陣列中元素的順序。
+    限制：不允許使用 with 子句。
+    用途：對陣列元素進行隨機排列，常用於隨機化測試。
+    例子：
+        int array[5] = '{1, 2, 3, 4, 5};
+        array.shuffle();
+        // 結果可能是：array = '{3, 1, 5, 2, 4}（每次執行結果可能不同）
+*/
+
+module tb;
+    int array[9] = '{4, 7, 2, 5, 7, 1, 6, 3, 1};
+
+    initial begin
+        array.reverse();
+        $display("reverse   :%p", array);
+
+        array.sort();
+        $display("sort      :%p", array);
+
+        array.rsort();
+        $display("rsort     :%p", array);
+
+        for (int i = 0; i < 5; i++)begin
+            array.shuffle();
+            $display("shuffle Iter:%0d = %p", i, array);
+        end
+    end
+endmodule
+/* sim log :
+reverse  : '{1, 3, 6, 1, 7, 5, 2, 7, 4}
+sort     : '{1, 1, 2, 3, 4, 5, 6, 7, 7}
+rsort    : '{7, 7, 6, 5, 4, 3, 2, 1, 1}
+shuffle Iter:0  = '{6, 7, 1, 7, 3, 2, 1, 4, 5}
+shuffle Iter:1  = '{5, 1, 3, 4, 2, 7, 1, 7, 6}
+shuffle Iter:2  = '{3, 1, 7, 4, 6, 7, 1, 2, 5}
+shuffle Iter:3  = '{6, 4, 7, 3, 1, 7, 5, 2, 1}
+shuffle Iter:4  = '{3, 6, 2, 5, 4, 7, 7, 1, 1} */
+
+// Using array ordering on classes
+class Register
+    string name;
+    rand bit [3:0] rank;
+    rand bit [3:0] pages;
+
+    function new (string name);
+        this.name = name;
+    endfunction
+
+    function void print();
+        $display("name=%s rand=%0d pages=%0d", name, rank, pages);
+    endfunction
+endclass
+
+module tb;
+    Register reg[4];
+    string name_arr[4] = '{"alexa", "siri", "google home", "cortana"};
+
+    initial begin
+        $display("------- Initial Values --------");
+        foreach (reg[i]) begin
+            reg[i] = new (name_arr[i]);
+            reg[i].randomize();
+            reg[i].print();
+        end
+
+        $display("-------- Sort by name --------");
+        reg.sort(x) with (x.name);
+        foreach (reg[i]) begin
+            reg[i].print();
+        end
+
+        $display("-------- Sort by rank, pages --------");
+        reg.sort(x) with ({x.rank, x.pages});
+        foreach (reg[i]) begin
+            reg[i].print();
+        end
+    end
+endmodule
+
+/* sim log :
+-------- Initial Values --------
+name=alexa rank=12 pages=13
+name=siri rank=6 pages=12
+name=google home rank=12 pages=13
+name=cortana rank=7 pages=11
+
+--------- Sort by name ------------
+name=alexa rank=12 pages=13
+name=cortana rank=7 pages=11
+name=google home rank=12 pages=13
+name=siri rank=6 pages=12
+
+--------- Sort by rank, pages -----------
+name=siri rank=6 pages=12
+name=cortana rank=7 pages=11
+name=alexa rank=12 pages=13
+name=google home rank=12 pages=13 */
+
+
+
+// Array Reduction Methods
+module tb;
+  int array[4] = '{1, 2, 3, 4};
+  int res[$];
+
+  initial begin
+    $display ("sum     = %0d", array.sum());
+    $display ("product = %0d", array.product());
+    $display ("and     = 0x%0h", array.and());
+    $display ("or      = 0x%0h", array.or());
+    $display ("xor     = 0x%0h", array.xor());
+  end
+endmodule
