@@ -72,3 +72,134 @@ module tb;
         $display("fruits = %p", fruits);
     end
 endmodule
+
+// Systemverilog Queue Methods
+size()
+    用途:返回隊列中元素的數量,若隊列為空則返回0。
+    範例: int len = queue.size();
+
+insert(index, item)
+    用途:將item插入到隊列中的指定索引位置index,並將後面的元素往後移動。
+    範例:queue.insert(2, value); // 插入到索引2的位置
+
+delete(index)
+    用途:刪除隊列中指定索引位置的元素。如果不提供index,則刪除所有元素,清空隊列。
+    範例:queue.delete(1); // 刪除索引1的元素
+
+pop_front()
+    用途：移除並返回隊列中的第一個元素。
+    範例:int first = queue.pop_front();
+
+pop_back()
+    用途：移除並返回隊列中的最後一個元素。
+    範例:int last = queue.pop_back();
+
+push_front(item)
+    用途:將item插入到隊列的開頭,使其成為隊列中的第一個元素。
+    範例:queue.push_front(value); // 插入到隊列開頭
+
+push_back(item)
+    用途:將item插入到隊列的末尾,使其成為隊列中的最後一個元素。
+    範例:queue.push_back(value); // 插入到隊列末尾
+
+module tb;
+    string fruits[$] = {"apple", "pear", "mango", "banana"};
+
+    initial begin
+        // size() : Gets size of the given queue
+        $display("Number of fruits=%0d fruits=%p", fruits.size(), fruits);
+
+        // insert() : Insert an element to the given index
+        fruits.insert(1, "peach");
+        $display("Insert peach, size=%0d fruits=%p", fruits.size(), fruits);
+
+        // delete() : Delete element at given index
+        fruits.delete(3);
+        $display("Delete mango, size=%0d fruits=%p", fruits.size(), fruits);
+
+        // pop_front() : Pop out element at the front
+        $display("Pop %s, size=%0d fruits=%p", fruits.pop_front(), fruits.size(), fruits);
+
+        // push_front() : Push a new element to front of the queue
+        fruits.push_front("apricot");
+        $display("Push apricot, size=%0d fruit=%p", fruits.size(), fruits);
+
+        // pop_back() : Pop out element from the back
+        $display("Pop %s, size=%0d fruits=%p", fruits.pop_back(), fruits.size(), fruits);
+
+        // push_back() : Push element to the back
+        $display("Push plum, size=%0d fruits=%p", fruits.size(), fruits);
+    end
+endmodule
+
+// How to create a queue of classes in SystemVerilog
+// Define a class with a single string member called "name"
+class Fruit;
+    string name;
+
+    function new (string name = "Unknown");
+        this.name = name;
+    endfunction
+endclass
+
+
+module tb;
+    // Create a queue that can hold values of data type "Fruit"
+    Fruit list [$];
+
+    initial begin
+        // Create a new class object and call it "Apple"
+        // and push into the queue
+        Fruit f = new("Apple");
+        list.push_back(f);
+
+        // Create another class object and call it "Banana" and
+        // push into the queue
+        f = new("Banana");
+        list.push_back(f);
+
+        // Iterate through queue and access each class object
+        foreach(list[i])
+            $display("list[%0d] = %s", i, list[i].name);
+        
+        // simply print the whole queue, note that class handles are printed
+        // and not class object contents
+        $display("list = %p", list);
+
+    end
+endmodule
+
+// Declare a dynamic array to store strings as a datatype
+typedef string str_da [];
+
+module tb;
+    // This is a queue of dynamic arrays
+    str_da list [$];
+
+    initial begin
+        // Initialize separate dynamic arrays with some values
+        str_da marvel = '{"Spiderman", "Hulk", "Captain America", "Iron Man"};
+        str_da dcWorld = '{"Batman", "Superman"};
+
+        // Push the previously created dynamic arrays to queue
+        list.push_back (marvel);
+        list.push_back (dcWorld);
+
+        // Iterate through the queue and access dynamic array elements
+        foreach (list[i])
+            foreach (list[i][j]);
+                $display("list[%0d][%0d] = %s", i, j, list[i][j]);
+
+        // Simply print the queue
+        $display("list = %p", list);
+    end
+endmodule
+
+/* sim log :
+list[0][0] = Spiderman
+list[0][1] = Hulk
+list[0][2] = Captain America
+list[0][3] = Iron Man
+list[1][0] = Batman
+list[1][1] = Superman
+list = '{'{"Spiderman", "Hulk", "Captain America", "Iron Man"}, '{"Batman", "Superman"}} */
