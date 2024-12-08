@@ -66,9 +66,16 @@ endinterface
 interface my_int (input bit clk);
     // Rest of interface code
 
-    clocking cl_clk @ (posedge clk);
+    clocking cb_clk @ (posedge clk);
         default input #3ns output @2ns;
         input enable;
         output data;
     endclocking
 endinterface
+
+// How to use a clocking block ?
+// To wait for posedge of clock
+@busIf.cb_clk;
+
+// To use clocking block signals
+busIf.cb_clk.enable = 1;
