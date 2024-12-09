@@ -146,3 +146,92 @@ module tb;
     // Stimulus remains the same as before
     // ...
 endmodule
+
+// Using SystemVerilog Interface
+interface slave_if (input logic clk, reset);
+    reg clk;
+    reg reset;
+    reg enable;
+
+    reg gnt;
+    // Declarations for other signals follow
+endinterface
+
+module d_slave (slave_if s_if);
+    // Design functionality
+    always @ (posedge s_if.clk) begin  // interface signals are accessed by the handle "s_if"
+        // Some behavior
+    end
+endmodule
+
+module d_top (input clk, reset);
+    // Create an instance of the slave interface
+    slave_if slave_if_inst (.clk(clk), .reset(reset));
+
+    d_slave slave_0 (.s_if(slave_if_inst));
+    d_slave slave_1 (.s_if(slave_if_inst));
+    d_slave slave_2 (.s_if(slave_if_inst));
+endmodule
+
+// Interface Array
+// interface myInterface;
+interface myInterface();
+    reg         gnt;
+    reg         ack;
+    reg [7:0]   irq;
+    // ...
+endinterface
+
+module tb;
+    // Single interface handle
+    myInterface if0();
+
+    // An array of interfaces
+    myInterface wb_if [3:0] ();
+
+    // Rest of the testbench
+    // ...
+endmodule
+
+module myDesign (myInterface dut_if, input logic clk);
+    always @ (posedge clk)
+        if (dut_if.ack)
+            dut_if.gnt <= 1;
+endmodule
+
+module tb;
+    reg clk;
+
+    // Single interface handle connection
+    myInterface     if0;
+    myDesign        top(if0, clk);
+
+    // Or connect by name
+    // myDesign     top(.dut_if(if0), .clk(clk));
+
+    // Multiple design instances connected to the appropriate
+    // interface handle
+    myDesign    md0 (wb_if[0], clk);
+    myDesign    md1 (wb_if[1], clk);
+    myDesign    md2 (wb_if[2], clk);
+    myDesign    md3 (wb_if[3], clk);
+endmodule
+
+module tb;
+    reg clk;
+
+    myInterface dut_if();
+
+    // Can use implicit port connection when all port signals have same name
+    myDesign top(.*);
+endmodule
+
+// Declare an interface without ports
+interface mif;
+    logic m_a;
+endinterface
+
+module tb;
+    mif   m_if;      // ERROR !
+    mif   m_if();    // Okay
+endmodule
