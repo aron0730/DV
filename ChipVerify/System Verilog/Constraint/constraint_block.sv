@@ -63,4 +63,19 @@ mode = 0x5 */
 
 
 // External Constraint Example
+// Let's declare a new class called "ABC" with a single variable that
+// can be randomized. We want this variable to have values between 2 and 6.
+// When randomized. This is achieved by a constraint called "c_mode" (you
+// Can name it anything else).
+class ABC;
+    rand bit [3:0] mode;
 
+    constraint c_implicit;          // An empty constraint without "extern" is implicit
+    extern constraint c_explicit;   // empty constraint with "extern" is explicit
+endclass
+
+// This is an external constraint because it is outside
+// the class-endclass body of the class. The constraint
+// i reference using ::
+constraint ABC::c_implicit { mode > 2; };
+constraint ABC::c_explicit { mode <= 6; };
