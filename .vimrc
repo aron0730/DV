@@ -35,6 +35,7 @@ set smartindent
 set tabstop=4
 set shiftwidth=4
 set expandtab
+set scrolloff=5
 
 " 搜尋時高亮 & 即時搜尋
 set hlsearch
