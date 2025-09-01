@@ -3,8 +3,11 @@ class generator;
     rand bit [3:0] a, b;  //* rand or randc
     bit [3:0] y;
 
-    // constraint data { a > 15;};  // a can't be more than 16 because the data types is 4 bits, status will be 0
+    constraint data_a {a > 3; a < 7;}
 
+    constraint data_b {b == 3;}
+
+    // constraint data {a > 3; a < 7 ; b > 0}
 endclass
 
 module tb;
@@ -14,7 +17,7 @@ module tb;
     initial begin
 
         for (i = 0; i < 10; i++) begin
-            g = new();  // Every transaction will create new object to avoid overwrite the previous transaction before the dut response
+            g = new();
             g.randomize();
             $display("Value of a : %0d and b : %0d", g.a, g.b);
             #10;
