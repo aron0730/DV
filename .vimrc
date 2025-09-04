@@ -1,9 +1,4 @@
 " ======= Plug 套件設定 ===== "
-" 安裝
-" curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
-"     https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-" PlugInstall
-
 call plug#begin('~/.vim/plugged')
 
 " 主題配色
@@ -55,7 +50,9 @@ syntax on
 set cursorline
 
 " log不要自動換行
-set nowrap
+set wrap
+set linebreak
+set breakindent
 
 " 顯示括號配對
 set showmatch
