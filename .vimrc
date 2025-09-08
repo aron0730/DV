@@ -64,6 +64,10 @@ set ff=unix
 " 背景設定
 set background=dark
 
+" vimdiff 忽略空白差異, 按F5更新
+set diffopt+=iwhite
+nnoremap <F5> :diffupdate<CR>
+
 " 顏色主題
 "colorscheme desert
 "colorscheme elflord
