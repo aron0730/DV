@@ -23,11 +23,13 @@ Plug 'sheerun/vim-polyglot'
 call plug#end()
 
 
-
 " ===== Vim基本設定 ===== "
 
 " 顯示行數
 set number
+
+" 設定捲動時自動保留的行數
+set scrolloff=5
 
 " 自動縮排與 smart indent
 set autoindent
@@ -68,6 +70,9 @@ set background=dark
 set diffopt+=iwhite
 nnoremap <F5> :diffupdate<CR>
 
+"主題更漂亮
+set termguicolors
+
 " 顏色主題
 "colorscheme desert
 "colorscheme elflord
@@ -77,4 +82,4 @@ colorscheme tokyonight
 "colorscheme darcula/vim
 
 " 啟動Plug中的Git Branch顯示
-let g:airline#extensions#branch#endbled=1
+let g:airline#extensions#branch#enabled=1
