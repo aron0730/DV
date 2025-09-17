@@ -50,6 +50,7 @@ syntax on
 
 " 顯示游標所在行
 set cursorline
+set cursorcolumn
 
 " log不要自動換行
 set wrap
@@ -76,9 +77,9 @@ set termguicolors
 " 顏色主題
 "colorscheme desert
 "colorscheme elflord
-"colorscheme gruvbox-material
+colorscheme gruvbox-material
 "colorscheme gruvbox
-colorscheme tokyonight
+"colorscheme tokyonight
 "colorscheme darcula/vim
 
 " 啟動Plug中的Git Branch顯示
