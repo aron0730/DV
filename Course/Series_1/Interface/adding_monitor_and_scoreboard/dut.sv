@@ -151,11 +151,21 @@ class scoreboard;
         this.mbx = mbx;
     endfunction
 
+    task compare(input transaction trans);
+        if ((trans.sum) == (trans.a + trans.b)) begin
+            $display("[SCO] : SUM RESULT MACHED");
+        end else begin
+            $error("[SCO] : SUM RESULT MISMATCHED");  //* $warning, $fatal
+        end
+    endtask
+
     task run();
         forever begin
             mbx.get(trans);
             $display("[SCO] : DATA RCVD FROM MONITOR");
             trans.display();
+            compare(trans);
+            $display("---------------------------------");
             #40; //!
         end
     endtask
@@ -177,6 +187,7 @@ module tb;
     initial begin
         for(int i = 0; i < 20; i++) begin
             repeat(2) @(posedge aif.clk); //!
+            $display("=================================");
             aif.a <= $urandom_range(0, 15);
             aif.b <= $urandom_range(0, 15);
         end
