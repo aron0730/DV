@@ -20,6 +20,20 @@ typedef uvm_severity uvm_severity_type;
 `endif
 
 
+// Enum: uvm_verbosity
+//
+// Defines standard verbosity levels for reports
+// 
+// UVM_NONE    - Report is always printed. Verbosity level setting cannot disable it.
+//
+// UVM_LOW     - Report is issued if configured verbosity is set to UVM_LOW or above.
+//
+// UVM_MEDIUM  - Report is issued if configured verbosity is set to UVM_MEDIUM or above.
+//
+// UVM_HIGH    - Report is issued if configured verbosity is set to UVM_HIGH or above.
+//
+// UVM_FULL    - Report is issued if configured verbosity is set to UVM_FULL or above.
+
 typedef enum 
 {
     UVM_NONE   = 0,
