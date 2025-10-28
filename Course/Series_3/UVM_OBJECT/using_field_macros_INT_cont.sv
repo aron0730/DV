@@ -11,10 +11,13 @@ class obj extends uvm_object;
     endfunction
 
     rand bit [3:0] a;
+    rand bit [3:0] b;
 
     `uvm_object_utils_begin(obj)
         // `uvm_field_int(a, UVM_DEFAULT)
-        `uvm_field_int(a, UVM_DEFAULT | UVM_BIN)
+        // `uvm_field_int(a, UVM_DEFAULT | UVM_BIN)
+        `uvm_field_int(a, UVM_NOPRINT | UVM_BIN)
+        `uvm_field_int(b, UVM_DEFAULT | UVM_DEC)
     `uvm_object_utils_end
 
 endclass
