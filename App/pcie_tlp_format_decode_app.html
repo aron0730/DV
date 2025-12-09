@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCIe TLP Header Decoder (Spec 6.1)</title>
+    <style>
+        /* Modern Font Stack */
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding-top: 40px; padding-bottom: 50px; color: #333; }
+        
+        .container { background: white; padding: 2.5rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 850px; }
+        
+        h2 { text-align: center; color: #1a1a1a; margin-bottom: 30px; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; font-weight: 700; letter-spacing: -0.5px; }
+        h3 { color: #555; margin-top: 40px; font-size: 1.1em; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;}
+        h3::before { content: ''; display: block; width: 4px; height: 18px; background: #007bff; border-radius: 2px; }
+
+        /* Input Styles */
+        .control-group { margin-bottom: 20px; display: flex; flex-direction: column; }
+        label { margin-bottom: 8px; font-weight: 600; color: #4a5568; font-size: 0.95rem; }
+        
+        /* 統一設定：輸入框和下拉選單都用好看的系統字體 */
+        .modern-input, .modern-select { 
+            padding: 12px 16px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            background-color: #fff; 
+            transition: border-color 0.2s, box-shadow 0.2s;
+            /* 關鍵：兩者都使用系統字體 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #2d3748;
+        }
+
+        /* Focus 狀態樣式 */
+        .modern-input:focus, .modern-select:focus { 
+            outline: none; 
+            border-color: #007bff; 
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.15); 
+        }
+
+        .hex-group { display: flex; gap: 10px; align-items: flex-end; }
+        .hex-input-wrapper { flex-grow: 1; }
+        
+        .btn-parse { background-color: #495057; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; white-space: nowrap; height: 46px; }
+        .btn-parse:hover { background-color: #343a40; }
+
+        .btn-main { width: 100%; padding: 14px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.1s, background 0.2s; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,123,255,0.2); }
+        .btn-main:hover { background-color: #0056b3; transform: translateY(-1px); }
+
+        /* Result Section */
+        #result { margin-top: 30px; padding: 20px; background-color: #f8fbff; border-radius: 12px; border: 1px solid #cce5ff; display: none; }
+        
+        .result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;}
+        .result-title { font-weight: 800; font-size: 1.4em; color: #003366; letter-spacing: -0.5px; }
+        .result-desc { color: #4a5568; font-size: 1em; line-height: 1.6; }
+
+        /* DW0 Details Grid */
+        .dw0-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e1e8ed; }
+        .detail-item { background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #edf2f7; font-size: 0.9em; }
+        .detail-item.highlight-detail { border: 1px solid #b8daff; background-color: #f0f7ff; }
+        .detail-label { display: block; color: #718096; font-size: 0.75em; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+        /* 結果數值維持等寬字體以便閱讀 */
+        .detail-value { font-weight: 700; color: #2d3748; font-family: 'Consolas', monospace; font-size: 1.1em;}
+
+        /* Badges */
+        .badge { padding: 5px 12px; border-radius: 20px; color: white; font-size: 0.8em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .bg-p { background: linear-gradient(135deg, #28a745, #20c997); }
+        .bg-np { background: linear-gradient(135deg, #fd7e14, #ffc107); }
+        .bg-cpl { background: linear-gradient(135deg, #17a2b8, #0dcaf0); }
+        .bg-unk { background: #6c757d; }
+
+        /* Table */
+        .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid #eee; margin-top: 10px;}
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px 12px; text-align: left; }
+        th { background-color: #f8f9fa; color: #444; font-weight: 700; }
+        .type-code { font-family: 'Consolas', monospace; color: #555; background: #eee; padding: 2px 6px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>PCIe TLP Header Decoder (Spec 6.1)</h2>
+    
+    <div class="control-group">
+        <label for="dw0Hex">Paste DW0 Hex (e.g., 4a000001)</label>
+        <div class="hex-group">
+            <div class="hex-input-wrapper">
+                <input type="text" id="dw0Hex" class="modern-input" placeholder="32-bit Hex Value" style="width: 100%;" onkeypress="handleEnter(event)">
+            </div>
+            <button class="btn-parse" onclick="parseDW0()">Parse DW0</button>
+        </div>
+    </div>
+
+    <div style="text-align: center; color: #aaa; margin: -10px 0 15px 0; font-size: 0.85em;">— OR —</div>
+
+    <div style="display: flex; gap: 20px;">
+        <div class="control-group" style="flex: 1;">
+            <label for="fmt">Fmt [31:29]</label>
+            <select id="fmt" class="modern-select">
+                <option value="000">000 (3DW, No Data)</option>
+                <option value="001">001 (4DW, No Data)</option>
+                <option value="010">010 (3DW, w/ Data)</option>
+                <option value="011">011 (4DW, w/ Data)</option>
+                <option value="100">100 (TLP Prefix)</option>
+            </select>
+        </div>
+
+        <div class="control-group" style="flex: 1;">
+            <label for="type">Type [28:24]</label>
+            <select id="type" class="modern-select">
+                <option value="00000">00000 (Memory)</option>
+                <option value="00001">00001 (Locked)</option>
+                <option value="00010">00010 (IO Read)</option>
+                <option value="00011">00011 (IO Write)</option>
+                <option value="00100">00100 (CfgRd0)</option>
+                <option value="00101">00101 (CfgWr0)</option>
+                <option value="00110">00110 (CfgRd1)</option>
+                <option value="00111">00111 (CfgWr1)</option>
+                <option value="01010">01010 (Cpl / CplD)</option>
+                <option value="01011">01011 (CplLk / CplDLk)</option>
+                <option value="10000">10xxx (Msg / MsgD)</option>
+            </select>
+        </div>
+    </div>
+
+    <button class="btn-main" onclick="decodeTLP()">Decode</button>
+
+    <div id="result">
+        <div class="result-header">
+            <div class="result-title" id="tlpName"></div>
+            <div id="tlpClassBadge"></div>
+        </div>
+        <div class="result-desc" id="tlpDesc"></div>
+        
+        <div id="dw0Details" class="dw0-grid" style="display:none;"></div>
+    </div>
+
+    <h3>PCIe Base Spec 6.1 Ref (Table 2-3)</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>TLP</th><th>Class</th><th>Fmt (Bin)</th><th>Type (Bin)</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>MRd</td><td><span class="badge bg-np" style="font-size:0.7em">NP</span></td><td class="type-code">000/001</td><td class="type-code">00000</td><td>Memory Read</td></tr>
+                <tr><td>MWr</td><td><span class="badge bg-p" style="font-size:0.7em">P</span></td><td class="type-code">010/011</td><td class="type-code">00000</td><td>Memory Write</td></tr>
+                <tr><td>MRdLk</td><td><span class="badge bg-np" style="font-size:0.7em">NP</span></td><td class="type-code">000/001</td><td class="type-code">00001</td><td>Locked Mem Read</td></tr>
+                <tr><td>Cpl</td><td><span class="badge bg-cpl" style="font-size:0.7em">Cpl</span></td><td class="type-code">000/001</td><td class="type-code">01010</td><td>Completion (No Data)</td></tr>
+                <tr><td>CplD</td><td><span class="badge bg-cpl" style="font-size:0.7em">Cpl</span></td><td class="type-code">010/011</td><td class="type-code">01010</td><td>Completion (w/ Data)</td></tr>
+                <tr><td>Msg</td><td><span class="badge bg-p" style="font-size:0.7em">P</span></td><td class="type-code">010</td><td class="type-code">10xxx</td><td>Message</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function handleEnter(e) { if(e.key === 'Enter') parseDW0(); }
+
+    function parseDW0() {
+        const inputStr = document.getElementById('dw0Hex').value.trim();
+        if (!inputStr) return;
+        const cleanStr = inputStr.replace(/^0x/i, '');
+        const dw0 = parseInt(cleanStr, 16);
+
+        if (isNaN(dw0)) { alert("Invalid Hex Value!"); return; }
+
+        const fmtVal = (dw0 >>> 29) & 0x7;
+        const typeVal = (dw0 >>> 24) & 0x1F;
+        
+        const fmtBin = fmtVal.toString(2).padStart(3, '0');
+        const typeBin = typeVal.toString(2).padStart(5, '0');
+        
+        setDropdown('fmt', fmtBin);
+
+        if ((typeVal & 0x18) === 0x10) {
+            setDropdown('type', '10000');
+        } else {
+            setDropdown('type', typeBin);
+        }
+
+        decodeTLP(dw0);
+    }
+
+    function setDropdown(id, value) {
+        const select = document.getElementById(id);
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].value === value) {
+                select.selectedIndex = i;
+                break;
+            }
+        }
+    }
+
+    function decodeTLP(rawDW0 = null) {
+        const fmt = document.getElementById('fmt').value;
+        const type = document.getElementById('type').value;
+        const resultDiv = document.getElementById('result');
+        const tlpNameDiv = document.getElementById('tlpName');
+        const tlpDescDiv = document.getElementById('tlpDesc');
+        const tlpBadgeDiv = document.getElementById('tlpClassBadge');
+        const dw0DetailsDiv = document.getElementById('dw0Details');
+
+        let name = "Unknown / Reserved";
+        let desc = "Undefined combination in PCIe Spec.";
+        let tlpClass = "";
+        let badgeClass = "bg-unk";
+        
+        const isWrite = (fmt === "010" || fmt === "011"); 
+        const is4DW   = (fmt === "001" || fmt === "011");
+        const hasData = (fmt === "010" || fmt === "011");
+
+        // Logic
+        if (fmt === "100") {
+            name = "TLP Prefix";
+            desc = "Extended Header (PASID, TPH, etc).";
+            tlpClass = "Prefix";
+            badgeClass = "bg-unk";
+        } 
+        else if (type === "00000") {
+            if (isWrite) {
+                name = "MWr (Memory Write)";
+                desc = "Posted Write Transaction.";
+                tlpClass = "Posted (P)";
+                badgeClass = "bg-p";
+            } else {
+                name = "MRd (Memory Read)";
+                desc = "Non-Posted Read Transaction.";
+                tlpClass = "Non-Posted (NP)";
+                badgeClass = "bg-np";
+            }
+        } 
+        else if (type === "00001") {
+            if (!hasData) {
+                name = "MRdLk (Locked Read)";
+                desc = "Locked Memory Read.";
+                tlpClass = "NP";
+                badgeClass = "bg-np";
+            } else {
+                name = "Reserved (Invalid)";
+                desc = "Locked Write is not supported in PCIe (Fmt indicates data).";
+                tlpClass = "Invalid";
+                badgeClass = "bg-unk";
+            }
+        } 
+        else if (type === "00010") { name = "IORd"; desc = "Legacy IO Read."; tlpClass = "NP"; badgeClass = "bg-np"; } 
+        else if (type === "00011") { name = "IOWr"; desc = "Legacy IO Write."; tlpClass = "NP"; badgeClass = "bg-np"; } 
+        else if (type === "00100") { name = "CfgRd0"; desc = "Config Read (Type 0) - Local."; tlpClass = "NP"; badgeClass = "bg-np"; } 
+        else if (type === "00101") { name = "CfgWr0"; desc = "Config Write (Type 0) - Local."; tlpClass = "NP"; badgeClass = "bg-np"; } 
+        else if (type === "00110") { name = "CfgRd1"; desc = "Config Read (Type 1) - Bridge."; tlpClass = "NP"; badgeClass = "bg-np"; } 
+        else if (type === "00111") { name = "CfgWr1"; desc = "Config Write (Type 1) - Bridge."; tlpClass = "NP"; badgeClass = "bg-np"; } 
+        else if (type === "01010") {
+            if (hasData) { name = "CplD"; desc = "Completion w/ Data."; } 
+            else { name = "Cpl"; desc = "Completion."; }
+            tlpClass = "Cpl"; badgeClass = "bg-cpl";
+        } 
+        else if (type === "01011") {
+            if (hasData) { name = "CplDLk"; desc = "Locked Completion w/ Data."; } 
+            else { name = "CplLk"; desc = "Locked Completion."; }
+            tlpClass = "Cpl"; badgeClass = "bg-cpl";
+        } 
+        else if (type.startsWith("10")) { 
+            name = "Msg / MsgD"; desc = "Message Packet."; tlpClass = "Posted (P)"; badgeClass = "bg-p";
+        }
+
+        resultDiv.style.display = "block";
+        tlpNameDiv.innerText = name;
+        
+        let headerSizeInfo = is4DW ? "[Header: 4DW / 64-bit Addr]" : "[Header: 3DW / 32-bit Addr]";
+        if (name.includes("Cpl")) headerSizeInfo = "[Header: 3DW]"; 
+        if (name.includes("Msg")) headerSizeInfo = "[Header: 4DW]"; 
+        
+        tlpDescDiv.innerText = desc + " " + headerSizeInfo;
+        tlpBadgeDiv.className = "badge " + badgeClass;
+        tlpBadgeDiv.innerText = tlpClass;
+
+        if (rawDW0 !== null) {
+            dw0DetailsDiv.style.display = "grid";
+            
+            const fmtVal = (rawDW0 >>> 29) & 0x7;
+            const typeVal = (rawDW0 >>> 24) & 0x1F;
+            const tc = (rawDW0 >>> 20) & 0x7;
+            const attr2 = (rawDW0 >>> 18) & 0x1;
+            const th = (rawDW0 >>> 16) & 0x1;
+            const td = (rawDW0 >>> 15) & 0x1;
+            const ep = (rawDW0 >>> 14) & 0x1;
+            const attr01 = (rawDW0 >>> 12) & 0x3;
+            const len = rawDW0 & 0x3FF;
+            const realLen = (len === 0) ? 1024 : len;
+
+            let html = `
+                <div class="detail-item highlight-detail">
+                    <span class="detail-label">Fmt</span>
+                    <span class="detail-value">${fmtVal.toString(2).padStart(3, '0')}</span>
+                </div>
+                <div class="detail-item highlight-detail">
+                    <span class="detail-label">Type</span>
+                    <span class="detail-value">${typeVal.toString(2).padStart(5, '0')}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Length</span>
+                    <span class="detail-value">${realLen} DW</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">TC</span>
+                    <span class="detail-value">${tc}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Attr</span>
+                    <span class="detail-value">0x${((attr2<<2)|attr01).toString(16)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">TH</span>
+                    <span class="detail-value">${th}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">TD</span>
+                    <span class="detail-value" style="color:${td?'red':'inherit'}">${td}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">EP</span>
+                    <span class="detail-value" style="color:${ep?'red':'inherit'}">${ep}</span>
+                </div>
+            `;
+            dw0DetailsDiv.innerHTML = html;
+        } else {
+            dw0DetailsDiv.style.display = "none";
+        }
+    }
+</script>
+
+</body>
+</html>
