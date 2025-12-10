@@ -26,12 +26,10 @@
             font-size: 16px; 
             background-color: #fff; 
             transition: border-color 0.2s, box-shadow 0.2s;
-            /* 關鍵：兩者都使用系統字體 */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: #2d3748;
         }
 
-        /* Focus 狀態樣式 */
         .modern-input:focus, .modern-select:focus { 
             outline: none; 
             border-color: #007bff; 
@@ -39,10 +37,15 @@
         }
 
         .hex-group { display: flex; gap: 10px; align-items: flex-end; }
-        .hex-input-wrapper { flex-grow: 1; }
+        .hex-input-wrapper { flex-grow: 1; position: relative; }
         
+        /* Button Styles */
         .btn-parse { background-color: #495057; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; white-space: nowrap; height: 46px; }
         .btn-parse:hover { background-color: #343a40; }
+
+        /* New Flip Button Style */
+        .btn-flip { background-color: #17a2b8; color: white; padding: 12px 15px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; white-space: nowrap; height: 46px; display: flex; align-items: center; gap: 5px;}
+        .btn-flip:hover { background-color: #138496; }
 
         .btn-main { width: 100%; padding: 14px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.1s, background 0.2s; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,123,255,0.2); }
         .btn-main:hover { background-color: #0056b3; transform: translateY(-1px); }
@@ -59,7 +62,6 @@
         .detail-item { background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #edf2f7; font-size: 0.9em; }
         .detail-item.highlight-detail { border: 1px solid #b8daff; background-color: #f0f7ff; }
         .detail-label { display: block; color: #718096; font-size: 0.75em; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
-        /* 結果數值維持等寬字體以便閱讀 */
         .detail-value { font-weight: 700; color: #2d3748; font-family: 'Consolas', monospace; font-size: 1.1em;}
 
         /* Badges */
@@ -88,8 +90,10 @@
             <div class="hex-input-wrapper">
                 <input type="text" id="dw0Hex" class="modern-input" placeholder="32-bit Hex Value" style="width: 100%;" onkeypress="handleEnter(event)">
             </div>
+            <button class="btn-flip" onclick="flipEndian()" title="Convert between Little Endian and Big Endian">⇄ Flip Bytes</button>
             <button class="btn-parse" onclick="parseDW0()">Parse DW0</button>
         </div>
+        <div style="font-size: 0.8em; color: #888; margin-top: 5px; text-align: right;">*Flip: converts 0100004a ↔ 4a000001</div>
     </div>
 
     <div style="text-align: center; color: #aaa; margin: -10px 0 15px 0; font-size: 0.85em;">— OR —</div>
@@ -157,6 +161,31 @@
 <script>
     function handleEnter(e) { if(e.key === 'Enter') parseDW0(); }
 
+    // --- New Function: Flip Endianness ---
+    function flipEndian() {
+        const input = document.getElementById('dw0Hex');
+        let val = input.value.trim().replace(/^0x/i, '');
+        
+        if (!val) return;
+
+        // Ensure 8 chars (32-bit) for correct byte swapping
+        val = val.padStart(8, '0');
+
+        // Split into bytes
+        // e.g., "4a000001" -> ["4a", "00", "00", "01"]
+        const bytes = val.match(/.{1,2}/g);
+        
+        if (bytes) {
+            // Reverse array and join
+            // -> ["01", "00", "00", "4a"] -> "0100004a"
+            const flipped = bytes.reverse().join('');
+            input.value = flipped;
+            
+            // Auto parse after flipping for better UX
+            parseDW0();
+        }
+    }
+
     function parseDW0() {
         const inputStr = document.getElementById('dw0Hex').value.trim();
         if (!inputStr) return;
@@ -212,36 +241,15 @@
 
         // Logic
         if (fmt === "100") {
-            name = "TLP Prefix";
-            desc = "Extended Header (PASID, TPH, etc).";
-            tlpClass = "Prefix";
-            badgeClass = "bg-unk";
+            name = "TLP Prefix"; desc = "Extended Header (PASID, TPH, etc)."; tlpClass = "Prefix"; badgeClass = "bg-unk";
         } 
         else if (type === "00000") {
-            if (isWrite) {
-                name = "MWr (Memory Write)";
-                desc = "Posted Write Transaction.";
-                tlpClass = "Posted (P)";
-                badgeClass = "bg-p";
-            } else {
-                name = "MRd (Memory Read)";
-                desc = "Non-Posted Read Transaction.";
-                tlpClass = "Non-Posted (NP)";
-                badgeClass = "bg-np";
-            }
+            if (isWrite) { name = "MWr (Memory Write)"; desc = "Posted Write Transaction."; tlpClass = "Posted (P)"; badgeClass = "bg-p"; } 
+            else { name = "MRd (Memory Read)"; desc = "Non-Posted Read Transaction."; tlpClass = "Non-Posted (NP)"; badgeClass = "bg-np"; }
         } 
         else if (type === "00001") {
-            if (!hasData) {
-                name = "MRdLk (Locked Read)";
-                desc = "Locked Memory Read.";
-                tlpClass = "NP";
-                badgeClass = "bg-np";
-            } else {
-                name = "Reserved (Invalid)";
-                desc = "Locked Write is not supported in PCIe (Fmt indicates data).";
-                tlpClass = "Invalid";
-                badgeClass = "bg-unk";
-            }
+            if (!hasData) { name = "MRdLk (Locked Read)"; desc = "Locked Memory Read."; tlpClass = "NP"; badgeClass = "bg-np"; } 
+            else { name = "Reserved (Invalid)"; desc = "Locked Write is not supported."; tlpClass = "Invalid"; badgeClass = "bg-unk"; }
         } 
         else if (type === "00010") { name = "IORd"; desc = "Legacy IO Read."; tlpClass = "NP"; badgeClass = "bg-np"; } 
         else if (type === "00011") { name = "IOWr"; desc = "Legacy IO Write."; tlpClass = "NP"; badgeClass = "bg-np"; } 
