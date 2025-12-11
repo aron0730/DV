@@ -1,0 +1,214 @@
+%-------------------------
+% Resume in Latex
+% Author : Jake Gutierrez
+% Based off of: https://github.com/sb2nov/resume
+% License : MIT
+%------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+
+
+%----------FONT OPTIONS----------
+% sans-serif
+% \usepackage[sfdefault]{FiraSans}
+% \usepackage[sfdefault]{roboto}
+% \usepackage[sfdefault]{noto-sans}
+% \usepackage[default]{sourcesanspro}
+
+% serif
+% \usepackage{CormorantGaramond}
+% \usepackage{charter}
+
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+% Ensure that generate pdf is machine readable/ATS parsable
+\pdfgentounicode=1
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textit{\small#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+
+%----------HEADING----------
+% \begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+%   \textbf{\href{http://sourabhbajaj.com/}{\Large Sourabh Bajaj}} & Email : \href{mailto:sourabh@sourabhbajaj.com}{sourabh@sourabhbajaj.com}\\
+%   \href{http://sourabhbajaj.com/}{http://www.sourabhbajaj.com} & Mobile : +1-123-456-7890 \\
+% \end{tabular*}
+
+\begin{center}
+    \textbf{\Huge \scshape MengLun Zhan} \\ \vspace{1pt}
+    \small +886-978-631-625 $|$ \href{mailto:x@x.com}{\underline{aron0730@gmail.com}} $|$ 
+    \href{https://linkedin.com/in/...}{\underline{www.linkedin.com/in/menglunzhan}} %$|$
+    %\href{https://github.com/...}{\underline{github.com/jake}}
+\end{center}
+
+
+%-----------EDUCATION-----------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {National Taiwan University}{2019 -- 2022}
+      {M.S. in Engineering Science}{Taipei, Taiwan}
+    \resumeSubheading
+      {National Taiwan Normal University}{2015 -- 2019}
+      {B.S. in Electrical Engineering}{Taipei, Taiwan}
+  \resumeSubHeadingListEnd
+
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+  \resumeSubHeadingListStart
+
+    \resumeSubheading
+      {Wolley Tech}{Dec. 2024 -- Present}
+      {Digital Verification Engineer}{}
+      \resumeItemListStart
+        \resumeItem{Spearheaded UVM-based verification of PCIe/CXL IPs, including environment bring-up, test planning, and coverage tracking.}
+        \resumeItem{Developed scalable testbenches and reusable components across multiple projects, accelerating verification cycles.}
+        \resumeItem{Partnered with cross-functional teams to debug complex protocol and timing issues using Verdi and Synopsys VIP.}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Wolley Tech}{Jun. 2023 -- Dec. 2024}
+      {Firmware Engineer}{}
+      \resumeItemListStart
+        \resumeItem{Implemented SSD firmware features including FTL, HMB, TRIM, and RAM disk for performance and reliability.}
+        \resumeItem{Optimized memory usage via LRU-based allocators and custom storage algorithms.}
+        \resumeItem{Developed Python tools for test automation, serial parsing, and validation support.}
+        \resumeItem{Contributed to PCIe Root Port bring-up, including BAR setup and AER error handling.}
+      \resumeItemListEnd
+
+  \resumeSubHeadingListEnd
+
+
+\section{Projects}
+  \resumeSubHeadingListStart
+
+    \resumeProjectHeading
+      {\textbf{PCIe Root Complex integrate Endpoint} $|$ \emph{UVM , AMBA Integration, Scoreboard Design}}{2025}
+      \resumeItemListStart
+        \resumeItem{Verified Root Complex integrating endpoints with ECAM, Type0/1 routing, and AXI/AHB/APB interconnects.}
+         \resumeItem{Built the UVM environment, including interface bindings, agent connections, and reusable base sequences.}
+        \resumeItem{Developed APB configuration sequences, AHB adapter and integrated into the UVM testbench.}
+        \resumeItem{Built reusable scoreboard to validate MMIO transactions, reducing debug time and catching ordering bugs early.}
+        \resumeItem{Led scenario planning and test case development, achieving 90\% coverage of ECAM and BAR configuration.}
+        \resumeItem{Reduced verification time by 25\% by modularizing test components and introducing reusable base sequences.}
+      \resumeItemListEnd
+      
+    \resumeProjectHeading
+      {\textbf{PCIe Switch IP} $|$ \emph{Legacy UVM Extension, Scenario Test Design, AXI-to-PCIe Flow}}{2025}
+      \resumeItemListStart
+        \resumeItem{Verified a multi-port PCIe Switch with upstream (USP) and downstream (DSP) ports supporting peer-to-peer traffic and AXI interfaces.}
+        \resumeItem{Enhanced legacy UVM environment and created testcases simulating TLP forwarding, AXI burst handling, and protocol violations.}
+        \resumeItem{Achieved 95\% functional coverage and 100\% assertion pass rate across multiple traffic scenarios.}
+        \resumeItem{Traced and resolved 20+ critical bugs using waveform analysis (Verdi) and transaction-level protocol tracing.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{CXL Controller} $|$ \emph{UVM, TLP Monitor, Scoreboard Architecture, PCIe/CXL Compliance}}{2025}
+      \resumeItemListStart
+        \resumeItem{Designed and implemented a TL RX's monitor and scoreboard to verify TLP decoding accuracy, protocol compliance, and format consistency per PCIe/CXL spec.}
+        \resumeItem{Built a parameterizable reference model to reconstruct TLPs from configurable bus slices, handling endian conversion and field decoding.}
+        \resumeItem{Developed a compare engine to validate format/type, length, prefix presence, and header/payload integrity.}
+        \resumeItem{Added error classification logic and automated reporting to detect mismatches with precise root cause labeling.}
+        \resumeItem{Instrumented coverage hooks across 50+ TLP variations, boosting decoding and ordering coverage by 30\%.}
+        \resumeItem{Enabled early-stage functional debug and reduced triage time by implementing cross-layer tracing between Data Link and Transaction Layers.}
+      \resumeItemListEnd
+
+
+
+  \resumeSubHeadingListEnd
+
+%
+%-----------PROGRAMMING SKILLS-----------
+\section{Technical Skills}
+  \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: SystemVerilog, Verilog, C, C++, Python} \\
+     \textbf{Protocols}{: PCIe, AXI, AHB, APB, CXS} \\
+     \textbf{Tools}{: VCS, Verdi, Synopsys VIP, Git, Perforce, Jenkins, Jira} \\
+     \textbf{Methodologies}{: UVM, Environment Component Design, Functional Coverage, RAL}
+    }}
+  \end{itemize}
+
+
+%-------------------------------------------
+\end{document}
+
+%https://www.overleaf.com/
