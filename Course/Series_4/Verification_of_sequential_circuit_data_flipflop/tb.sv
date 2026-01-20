@@ -131,6 +131,7 @@ class mon extends uvm_monitor;
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         tr = transaction::type_id::create("tr");
+        send = new("send", this);
         uvm_config_db#(virtual dff_if)::get(this, "", "dif", dif);
     endfunction
 
@@ -145,7 +146,7 @@ class mon extends uvm_monitor;
         end
     endtask
 endclass
-///////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
 class sco extends uvm_scoreboard;
     `uvm_component_utils(sco)
 
@@ -162,19 +163,110 @@ class sco extends uvm_scoreboard;
 
     virtual function void write(transaction tr);
         `uvm_info("SCO", $sformatf("rst : %0b, din : %0b, dout : %0b", tr.rst, tr.din, tr.dout), UVM_NONE);
-        if(tr.rst == 1'b1);
+        if(tr.rst == 1'b1) begin
             `uvm_info("SCO", "DFF Reset", UVM_NONE);
-        else if (tr.rst == 1'b0 && (tr.din == tr.dout))
+        end else if (tr.rst == 1'b0 && (tr.din == tr.dout)) begin
             `uvm_info("SCO", "TEST Passed", UVM_NONE);
-        else
-            `uvm_info("SCO", "TEST Failed", UVM_NONE)
+        end else begin
+            `uvm_info("SCO", "TEST Failed", UVM_NONE);
+        end
 
         $display("-----------------------------------------------");
     endfunction
 
 endclass
-///////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
+class agent extends uvm_agent;
+    `uvm_component_utils(agent);
 
+    function new(input string path = "agent", uvm_component parent = null);
+        super.new(path, parent);
+    endfunction
+
+    uvm_sequencer #(transaction) seqr;
+    drv d;
+    mon m;
+    config_dff cfg;  //!
+
+    virtual function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        m = mon::type_id::create("m", this);
+        cfg = config_dff::type_id::create("cfg");
+        ////////////////////////////////////////////////////
+        if(!uvm_config_db#(config_dff)::get(this, "", "cfg", cfg))
+            `uvm_error("AGENT", "FAILED TO ACCESS CONFIG");
+        
+        if(cfg.agent_type == (UVM_ACTIVE)) begin
+            d = drv::type_id::create("d", this);
+            seqr = uvm_sequencer#(transaction)::type_id::create("seqr", this);
+        end
+    endfunction
+
+    virtual function void connect_phase(uvm_phase phase);
+        super.connect_phase(phase);
+        d.seq_item_port.connect(seqr.seq_item_export);
+    endfunction
+endclass
+//////////////////////////////////////////////////////////////////
+class env extends uvm_env;
+    `uvm_component_utils(env);
+
+    function new(input string path = "env", uvm_component parent = null);
+        super.new(path, parent);
+    endfunction
+
+    agent a;
+    sco s;
+    config_dff cfg;
+
+    virtual function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        a = agent::type_id::create("a", this);
+        s = sco::type_id::create("s", this);
+        cfg = config_dff::type_id::create("cfg");
+        /////////////////////////////////////////////
+        uvm_config_db#(config_dff)::set(this, "a", "cfg", cfg);
+    endfunction
+
+    virtual function void connect_phase(uvm_phase phase);
+        super.connect_phase(phase);
+        a.m.send.connect(s.recv);  //!
+    endfunction
+
+endclass
+//////////////////////////////////////////////////////////////////
+class test extends uvm_test;
+    `uvm_component_utils(test)
+
+    function new(input string path = "test", uvm_component parent);
+        super.new(path, parent);
+    endfunction
+
+    env e;
+    valid_din     vdin;
+    rst_dff       rff;
+    rand_din_rst  rdin;
+
+    virtual function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        e = env::type_id::create("env", this);
+        vdin = valid_din::type_id::create("vdin");
+        rff = rst_dff::type_id::create("rff");
+        rdin = rand_din_rst::type_id::create("rdin");
+    endfunction
+
+    virtual task run_phase(uvm_phase phase);
+        phase.raise_objection(this);
+        rff.start(e.a.seqr);
+        #40;
+        vdin.start(e.a.seqr);
+        #40;
+        rdin.start(e.a.seqr);
+        #40;
+        phase.drop_objection(this);
+    endtask
+endclass
+//////////////////////////////////////////////////////////////////
 
 module tb;
 
