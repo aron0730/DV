@@ -38,6 +38,7 @@ set tabstop=4
 set shiftwidth=4
 set expandtab
 set scrolloff=5
+set mouse=a
 
 " 搜尋時高亮 & 即時搜尋
 set hlsearch
