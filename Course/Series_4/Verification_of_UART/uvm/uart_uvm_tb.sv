@@ -386,7 +386,6 @@ class mon extends uvm_monitor;
 
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
-        tr = transaction::type_id::create("tr");
         send = new("send", this);
         if(!uvm_config_db#(virtual uart_if)::get(this, "", "vif", vif))
             `uvm_error("MON", "Unable to access Interface");
@@ -394,6 +393,7 @@ class mon extends uvm_monitor;
 
     virtual task run_phase(uvm_phase phase);
         forever begin
+            tr = transaction::type_id::create("tr");
             @(posedge vif.clk);
             if(vif.rst) begin
                 tr.rst = 1'b1;
@@ -410,9 +410,12 @@ class mon extends uvm_monitor;
                 tr.parity_type  = vif.parity_type;
                 tr.parity_en    = vif.parity_en;
                 tr.stop2        = vif.stop2;
+
+                @(posedge vif.rx_done);
+                #1step;
+                tr.rx_out = vif.rx_out;
                 @(negedge vif.rx_done);
 
-                tr.rx_out = vif.rx_out;
                 `uvm_info("MON", $sformatf("BAUD:%0d LEN:%0d PAR_T:%0d PAR_EN:%0d STOP:%0d TX_DATA:%0d RX_DATA:%0d", tr.baud, tr.length, tr.parity_type, tr.parity_en, tr.stop2, tr.tx_data, tr.rx_out), UVM_NONE);
                 send.write(tr);
             end

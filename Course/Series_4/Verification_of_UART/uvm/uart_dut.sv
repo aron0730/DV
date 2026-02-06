@@ -1,6 +1,350 @@
+///////////////////////////////GOOD VERSION//////////////////////
+`timescale 1ns/1ps
+
+//============================================================
+// Tick Generator (single clock domain)
+// clk = 50MHz assumed
+//============================================================
+module uart_tick_gen (
+    input  logic        clk,
+    input  logic        rst,
+    input  logic [16:0] baud,
+    output logic        tx_tick,
+    output logic        rx_tick
+);
+    int unsigned tx_div, rx_div;
+    int unsigned tx_cnt, rx_cnt;
+
+    always_comb begin
+        unique case (baud)
+            4800  : begin tx_div = 10416-1; rx_div = 651-1; end
+            9600  : begin tx_div = 5208-1;  rx_div = 325-1; end
+            14400 : begin tx_div = 3472-1;  rx_div = 217-1; end
+            19200 : begin tx_div = 2604-1;  rx_div = 163-1; end
+            38400 : begin tx_div = 1302-1;  rx_div = 81-1;  end
+            57600 : begin tx_div = 868-1;   rx_div = 54-1;  end
+            115200: begin tx_div = 434-1;   rx_div = 27-1;  end
+            128000: begin tx_div = 392-1;   rx_div = 24-1;  end
+            default: begin tx_div = 5208-1; rx_div = 325-1; end
+        endcase
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            tx_cnt  <= 0;
+            rx_cnt  <= 0;
+            tx_tick <= 0;
+            rx_tick <= 0;
+        end else begin
+            tx_tick <= 0;
+            rx_tick <= 0;
+
+            if (tx_cnt >= tx_div) begin
+                tx_cnt  <= 0;
+                tx_tick <= 1;
+            end else
+                tx_cnt <= tx_cnt + 1;
+
+            if (rx_cnt >= rx_div) begin
+                rx_cnt  <= 0;
+                rx_tick <= 1;
+            end else
+                rx_cnt <= rx_cnt + 1;
+        end
+    end
+endmodule
+
+//============================================================
+// UART TX
+//============================================================
+module uart_tx (
+    input  logic       clk,
+    input  logic       rst,
+    input  logic       tx_tick,
+    input  logic       tx_start,
+    input  logic [7:0] tx_data,
+    input  logic [3:0] length,
+    input  logic       parity_type,
+    input  logic       parity_en,
+    input  logic       stop2,
+    output logic       tx,
+    output logic       tx_done,
+    output logic       tx_err
+);
+    typedef enum logic [2:0] {
+        IDLE, START, DATA, PARITY, STOP1, STOP2, DONE
+    } state_t;
+
+    state_t state;
+    logic [7:0] shreg;
+    int unsigned bit_idx;
+    logic parity_bit;
+
+    // ---- SAFE parity function (NO variable part-select) ----
+    function automatic logic calc_parity(
+        input logic [7:0] d,
+        input logic [3:0] nbits,
+        input logic       odd
+    );
+        logic x;
+        begin
+            unique case (nbits)
+                4'd5: x = ^d[4:0];
+                4'd6: x = ^d[5:0];
+                4'd7: x = ^d[6:0];
+                default: x = ^d[7:0];
+            endcase
+            calc_parity = odd ? x : ~x;
+        end
+    endfunction
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            state   <= IDLE;
+            tx      <= 1'b1;
+            tx_done <= 0;
+            tx_err  <= 0;
+            bit_idx <= 0;
+            shreg   <= 0;
+            parity_bit <= 0;
+        end else begin
+            tx_done <= 0;
+
+            if (tx_tick) begin
+                case (state)
+                    IDLE: begin
+                        tx <= 1'b1;
+                        bit_idx <= 0;
+                        if (tx_start) begin
+                            shreg <= tx_data;
+                            parity_bit <= calc_parity(tx_data, length, parity_type);
+                            state <= START;
+                        end
+                    end
+
+                    START: begin
+                        tx <= 1'b0;
+                        state <= DATA;
+                    end
+
+                    DATA: begin
+                        tx <= shreg[bit_idx];
+                        if (bit_idx == length-1)
+                            state <= parity_en ? PARITY : STOP1;
+                        else
+                            bit_idx <= bit_idx + 1;
+                    end
+
+                    PARITY: begin
+                        tx <= parity_bit;
+                        state <= STOP1;
+                    end
+
+                    STOP1: begin
+                        tx <= 1'b1;
+                        state <= stop2 ? STOP2 : DONE;
+                    end
+
+                    STOP2: begin
+                        tx <= 1'b1;
+                        state <= DONE;
+                    end
+
+                    DONE: begin
+                        tx_done <= 1'b1;
+                        state <= IDLE;
+                    end
+                endcase
+            end
+        end
+    end
+endmodule
+
+//============================================================
+// UART RX
+//============================================================
+module uart_rx (
+    input  logic       clk,
+    input  logic       rst,
+    input  logic       rx_tick,
+    input  logic       rx_start,
+    input  logic       rx,
+    input  logic [3:0] length,
+    input  logic       parity_type,
+    input  logic       parity_en,
+    input  logic       stop2,
+    output logic [7:0] rx_out,
+    output logic       rx_done,
+    output logic       rx_error
+);
+    typedef enum logic [2:0] {
+        R_IDLE, R_ALIGN, R_DATA, R_PARITY, R_STOP1, R_STOP2, R_DONE
+    } rstate_t;
+
+    rstate_t state;
+    int unsigned tick_cnt;
+    int unsigned bit_idx;
+    logic [7:0] data_reg;
+    logic exp_parity;
+
+    function automatic logic calc_parity(
+        input logic [7:0] d,
+        input logic [3:0] nbits,
+        input logic       odd
+    );
+        logic x;
+        begin
+            unique case (nbits)
+                4'd5: x = ^d[4:0];
+                4'd6: x = ^d[5:0];
+                4'd7: x = ^d[6:0];
+                default: x = ^d[7:0];
+            endcase
+            calc_parity = odd ? x : ~x;
+        end
+    endfunction
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            state <= R_IDLE;
+            tick_cnt <= 0;
+            bit_idx <= 0;
+            data_reg <= 0;
+            rx_out <= 0;
+            rx_done <= 0;
+            rx_error <= 0;
+        end else begin
+            rx_done <= 0;
+
+            if (rx_tick) begin
+                case (state)
+                    R_IDLE: begin
+                        rx_error <= 0;
+                        tick_cnt <= 0;
+                        bit_idx <= 0;
+                        if (rx_start && rx == 0)
+                            state <= R_ALIGN;
+                    end
+
+                    R_ALIGN: begin
+                        if (tick_cnt == 15) begin
+                            tick_cnt <= 0;
+                            state <= R_DATA;
+                        end else
+                            tick_cnt <= tick_cnt + 1;
+                    end
+
+                    R_DATA: begin
+                        if (tick_cnt == 7)
+                            data_reg[bit_idx] <= rx;
+
+                        if (tick_cnt == 15) begin
+                            tick_cnt <= 0;
+                            if (bit_idx == length-1) begin
+                                rx_out <= data_reg;
+                                exp_parity <= calc_parity(data_reg, length, parity_type);
+                                state <= parity_en ? R_PARITY : R_STOP1;
+                            end else
+                                bit_idx <= bit_idx + 1;
+                        end else
+                            tick_cnt <= tick_cnt + 1;
+                    end
+
+                    R_PARITY: begin
+                        if (tick_cnt == 7 && rx != exp_parity)
+                            rx_error <= 1'b1;
+
+                        if (tick_cnt == 15) begin
+                            tick_cnt <= 0;
+                            state <= R_STOP1;
+                        end else
+                            tick_cnt <= tick_cnt + 1;
+                    end
+
+                    R_STOP1: begin
+                        if (tick_cnt == 7 && rx != 1'b1)
+                            rx_error <= 1'b1;
+
+                        if (tick_cnt == 15) begin
+                            tick_cnt <= 0;
+                            state <= stop2 ? R_STOP2 : R_DONE;
+                        end else
+                            tick_cnt <= tick_cnt + 1;
+                    end
+
+                    R_STOP2: begin
+                        if (tick_cnt == 7 && rx != 1'b1)
+                            rx_error <= 1'b1;
+
+                        if (tick_cnt == 15) begin
+                            tick_cnt <= 0;
+                            state <= R_DONE;
+                        end else
+                            tick_cnt <= tick_cnt + 1;
+                    end
+
+                    R_DONE: begin
+                        rx_done <= 1'b1;
+                        state <= R_IDLE;
+                    end
+                endcase
+            end
+        end
+    end
+endmodule
+
+//============================================================
+// TOP
+//============================================================
+module uart_top (
+    input  logic        clk, rst,
+    input  logic        tx_start, rx_start,
+    input  logic [7:0]  tx_data,
+    input  logic [16:0] baud,
+    input  logic [3:0]  length,
+    input  logic        parity_type, parity_en,
+    input  logic        stop2,
+    output logic        tx_done, rx_done, tx_err, rx_err,
+    output logic [7:0]  rx_out
+);
+    logic tx_tick, rx_tick;
+    logic tx_line;
+
+    uart_tick_gen u_tick (.clk(clk), .rst(rst), .baud(baud),
+                          .tx_tick(tx_tick), .rx_tick(rx_tick));
+
+    uart_tx u_tx (.clk(clk), .rst(rst), .tx_tick(tx_tick),
+                  .tx_start(tx_start), .tx_data(tx_data),
+                  .length(length), .parity_type(parity_type),
+                  .parity_en(parity_en), .stop2(stop2),
+                  .tx(tx_line), .tx_done(tx_done), .tx_err(tx_err));
+
+    uart_rx u_rx (.clk(clk), .rst(rst), .rx_tick(rx_tick),
+                  .rx_start(rx_start), .rx(tx_line),
+                  .length(length), .parity_type(parity_type),
+                  .parity_en(parity_en), .stop2(stop2),
+                  .rx_out(rx_out), .rx_done(rx_done), .rx_error(rx_err));
+endmodule
+
+//============================================================
+// Interface
+//============================================================
+interface uart_if;
+    logic clk, rst;
+    logic tx_start, rx_start;
+    logic [7:0] tx_data;
+    logic [16:0] baud;
+    logic [3:0] length;
+    logic parity_type, parity_en;
+    logic stop2;
+    logic tx_done, rx_done, tx_err, rx_err;
+    logic [7:0] rx_out;
+endinterface
+
+
+/////////////////Course version///////////////////////
 `timescale 1ns / 1ps
- 
-/////////////////////////////////////////////////
+
 //* clock generator
 module clk_gen(
     input clk, rst,
@@ -10,7 +354,6 @@ module clk_gen(
  
     int rx_max =0, tx_max = 0;
     int rx_count = 0 , tx_count = 0;
-//////////////////////////////////////////////
     
     always@(posedge clk) begin
         if(rst)begin
@@ -59,11 +402,10 @@ module clk_gen(
         end
     end
  
-///////////////////////////////////////////
     always@(posedge clk)
     begin
         if(rst) begin
-            rx_max   <= 0;
+            // rx_max   <= 0;
             rx_count <= 0;
             rx_clk <= 0;
         end else begin
@@ -75,11 +417,10 @@ module clk_gen(
             end
         end
     end
-////////////////////////////////////////////////////////////
  
     always@(posedge clk) begin
         if(rst) begin
-            tx_max   <= 0;
+            // tx_max   <= 0;
             tx_count <= 0;
             tx_clk <= 0;
         end else begin
@@ -92,7 +433,7 @@ module clk_gen(
         end
     end
 endmodule
-//////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////
 //* UART Transmitter
 module uart_tx(
     input tx_clk,tx_start,
@@ -114,7 +455,7 @@ module uart_tx(
     typedef enum bit [2:0]  {idle = 0, start_bit = 1, send_data = 2, send_parity = 3, send_first_stop = 4, send_sec_stop = 5, done = 6} state_type;
     state_type state = idle, next_state = idle;
     
-    ////////////////////parity generator
+    //* parity generator
     always@(posedge tx_clk)
     begin
        if(parity_type == 1'b1) ///odd
@@ -138,14 +479,16 @@ module uart_tx(
             endcase
         end 
     end
-    ///////////////////// reset detector
+
+    //* reset detector
     always@(posedge tx_clk)begin
         if(rst)
             state <= idle;
         else
             state <= next_state;
     end
-    ///////////////////next state decoder + output decoder
+
+    //* next state decoder + output decoder
     always@(*) begin
         case(state)
             idle :
@@ -159,15 +502,14 @@ module uart_tx(
                     else
                         next_state = idle;
                 end
-            ////////////////////////
+            
             start_bit : 
                 begin
                     tx_reg      = tx_data;
                     tx          = start_b;
                     next_state  = send_data;
                 end  
-            ///////////////////////////
-                
+            
             send_data:
                 begin
                     if(count < (length - 1)) 
@@ -186,14 +528,12 @@ module uart_tx(
                             next_state  = send_first_stop;
                         end
                 end  
-            ////////////////////////////////////////////////
             
             send_parity: 
                 begin
                     tx          = parity_bit;
                     next_state  = send_first_stop;
                 end
-            ///////////////////////////////////////////////////
             
             send_first_stop : 
                 begin
@@ -203,29 +543,24 @@ module uart_tx(
                     else
                         next_state  = done;
                 end
-            ////////////////////////////////////
+            
             send_sec_stop : 
                 begin
                     tx          = stop_b;
                     next_state  = done;
                 end
             
-        
-            ////////////////////////////////
-            
             done :
                 begin
                     tx_done     = 1'b1;
                     next_state  = idle;
                 end
-            //////////////////////////////////////////////////
+            
             default : next_state  = idle;
             
         endcase
     end
- ///////////////////////////////////////////////////////////////////////////////////////////////////////////
  
-    
     always@(posedge tx_clk) begin
         case(state)
             idle : begin
@@ -259,9 +594,9 @@ module uart_tx(
             default : count <= 0;
         endcase
     end
- ////////////////////////////////////////////////////////////////////
 endmodule
 
+ ////////////////////////////////////////////////////////////////////
 //* UART Receiver
 module uart_rx(
     input rx_clk,rx_start,
@@ -280,7 +615,8 @@ module uart_rx(
  
     typedef enum bit [2:0] {idle = 0, start_bit = 1, recv_data = 2, check_parity = 3, check_first_stop = 4, check_sec_stop= 5, done = 6} state_type;
     state_type state = idle, next_state = idle;
-     ///////////////////// reset detector
+
+     //* reset detector
     always@(posedge rx_clk)
     begin
         if(rst)
@@ -288,10 +624,9 @@ module uart_rx(
         else
             state <= next_state;
     end
- /////////////////////////////////////////////////////////
- ///////////////////next_State decoder + output
- 
-     ///////////////////// reset detector
+
+    //* next_State decoder + output
+    //* reset detector
     always@(*) begin
         case(state)
             idle: begin
@@ -303,7 +638,7 @@ module uart_rx(
                     next_state = idle;
                 
             end
-         ////////////////////////////////////////////////
+
             start_bit: begin
                 if(count == 7 && rx)
                     begin
@@ -318,7 +653,7 @@ module uart_rx(
                         next_state = start_bit;
                     end
             end
-     //////////////////////////////////////////////////////////////////  
+
             recv_data: begin      
                 if(count == 7)
                     begin
@@ -333,23 +668,22 @@ module uart_rx(
                             8: rx_out = datard[7:0];
                             default : rx_out = 8'h00;
                         endcase
-                        //////////////////////////////////   
+                           
                         if(parity_type)
                             parity = ^datard;
                         else
                             parity  = ~^datard;
-                        ////////////////////////////////////////////
                     
                         if(parity_en)
                             next_state = check_parity;
                         else
                             next_state = check_first_stop;
-                        /////////////////////////////////////////
+                        
                     end
                 else
                     next_state = recv_data;
-             end  
-         //////////////////////////////////////////////////
+            end
+
             check_parity: begin
                 if(count == 7) 
                     begin
@@ -366,8 +700,8 @@ module uart_rx(
                     begin
                         next_state = check_parity;
                     end
-            end       
-     ////////////////////////////////////////////////////////////////////////////       
+            end
+               
             check_first_stop : 
             begin
                 if(count == 7)
@@ -385,7 +719,7 @@ module uart_rx(
                             next_state = done; 
                     end
             end
-  ////////////////////////////////////////////////////////////////////////////////          
+
             check_sec_stop: begin
                 if(count == 7) begin
                     if(rx != 1'b1)
@@ -396,7 +730,7 @@ module uart_rx(
                     next_state = done; 
                 end
             end
-    /////////////////////////////////////////////////////////////////////////         
+
             done :  begin
                 rx_done = 1'b1;
                 next_state = idle;
@@ -404,8 +738,8 @@ module uart_rx(
             end    
         endcase
     end
- ///////////////////////////////////////////////////////////////////////////////////////////////////
-      ///////////////////// reset detector
+    
+    //* reset detector
     always@(posedge rx_clk)
     begin
         case(state)
@@ -413,14 +747,14 @@ module uart_rx(
                 count     <= 0;
                 bit_count <= 0;
             end
-            ////////////////////////////////////////////////
+
             start_bit: begin
                 if(count < 15)
                     count <= count + 1;
                 else
                     count <= 0;
             end
-        //////////////////////////////////////////////////////////////////  
+
             recv_data: begin
                 if(count < 15)
                     count <= count + 1;
@@ -429,29 +763,29 @@ module uart_rx(
                     bit_count <= bit_count + 1;
                 end
             end  
-            //////////////////////////////////////////////////
+
             check_parity: begin
                 if(count < 15)
                     count <= count + 1;
                 else
                     count <= 0;        
-            end       
-        ////////////////////////////////////////////////////////////////////////////       
+            end
+
             check_first_stop : begin
                 if(count < 15)
                     count <= count + 1;
                 else
                     count <= 0;
             end
-    ////////////////////////////////////////////////////////////////////////////////          
+
             check_sec_stop: begin
                 if(count < 15)
                     count <= count + 1;
                 else
                     count <= 0;
                 
-            end      
-        /////////////////////////////////////////////////////////////////////////         
+            end
+
             done :  begin
                 count <= 0;
                 bit_count <= 0;
@@ -459,9 +793,7 @@ module uart_rx(
         endcase
     end
  endmodule
-///////////////////////////////////////////////////////////////////
-    
-/////////////////////////////////
+////////////////////////////////////////////////////////////////////
  
 module uart_top
 (
