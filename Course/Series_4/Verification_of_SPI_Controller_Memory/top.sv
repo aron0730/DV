@@ -135,15 +135,15 @@ module spi_mem(
     output reg ready, mosi, op_done
 );
 
-    reg [7:0] mem [31:0] = `{default:0};
+    reg [7:0] mem [31:0] = '{default:0};
     integer count = 0;
     reg [15:0] datain;
     reg [7:0] dataout;
 
-    typedef enum bit [2:0] {idle = 0, detect = 1, store = 2, read_addr = 3, send_data = 4} state_type;
+    typedef enum bit [2:0] {idle = 0, detect = 1, store = 2, send_addr = 3, send_data = 4} state_type;
     state_type state = idle;
 
-    always@(posedfge clk) begin
+    always@(posedge clk) begin
         if(rst) begin
             state <= idle;
             count <= 0;
@@ -170,7 +170,7 @@ module spi_mem(
                     if(miso)
                         state <= store;  // write cmd
                     else
-                        state <= read_addr;  // read cmd
+                        state <= send_addr;  // read cmd
                 end
 
                 store : begin
@@ -187,17 +187,17 @@ module spi_mem(
                     end
                 end
 
-                read_addr : begin
+                send_addr : begin
                     if(count <= 7) begin
                         count <= count + 1;
                         datain[count] <= miso;
-                        state <= read_addr;
+                        state <= send_addr;
                     end
                     else begin
                         count <= 0;
                         state <= send_data;
-                        read <= 1'b1;
-                        datatout <= mem[datain];
+                        ready <= 1'b1;
+                        dataout <= mem[datain];
                     end
                 end
 
@@ -221,7 +221,7 @@ module spi_mem(
     end
 endmodule
 ////////////////////////////////////////////////////////////////////////////////////////////
-module top(
+module dut_top(
     input wr, clk, rst,
     input [7:0] addr, din,
     output [7:0] dout,
@@ -233,3 +233,12 @@ module top(
     spi_intf intf (wr, clk, rst, readyreg, opdonereg, addr, din, dout, csreg, mosireg, misoreg, done, err);
     spi_mem mem_inst (clk, rst, csreg, mosireg, readyreg, misoreg, opdonereg);
 endmodule
+////////////////////////////////////////////////////////////////////////////////////////////
+interface spi_i;
+    
+    logic wr, clk, rst;
+    logic [7:0] addr, din;
+    logic [7:0] dout;
+    logic done, err;
+
+endinterface
