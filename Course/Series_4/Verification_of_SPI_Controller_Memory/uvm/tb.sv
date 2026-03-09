@@ -55,7 +55,7 @@ class write_data extends uvm_sequence#(transaction);
     endfunction
 
     virtual task body();
-        repeat(5) begin
+        repeat(15) begin
             tr = transaction::type_id::create("tr");
             tr.addr_c.constraint_mode(1);
             tr.addr_c_err.constraint_mode(0);
@@ -283,6 +283,7 @@ class mon extends uvm_monitor;
                 send.write(tr);
             end
             else if (!vif.rst && vif.wr) begin
+                @(posedge vif.done);
                 tr.op = writed;
                 tr.wr = 1'b1;
                 tr.addr = vif.addr;
@@ -292,11 +293,13 @@ class mon extends uvm_monitor;
                 send.write(tr);
             end
             else if (!vif.rst && !vif.wr) begin
+                @(posedge vif.done);
                 tr.op = readd;
                 tr.wr = 1'b0;
                 tr.addr = vif.addr;
                 tr.din = vif.din;
                 tr.err = vif.err;
+                tr.dout   = vif.dout; 
                 `uvm_info("MON", $sformatf("DATA READ  addr:%0d data:%0d err:%0d", tr.addr, tr.din, tr.err), UVM_NONE);
                 send.write(tr);
             end
