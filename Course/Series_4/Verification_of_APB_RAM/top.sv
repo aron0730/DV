@@ -30,7 +30,7 @@ module apb_ram (
                 idle: begin
                     prdata <= 32'h0000_0000;
                     pready <= 0;
-                    penable <= 0;
+                    pslverr <= 0;
                     state <= setup;
                 end
 
@@ -44,7 +44,7 @@ module apb_ram (
                 access: begin
                     if(pwrite && penable) begin
                         if(paddr < 32) begin
-                            mem[addr] <= pwdata;
+                            mem[paddr] <= pwdata;
                             state <= transfer;
                             pslverr <= 1'b0;
                             pready <= 1'b1;
@@ -55,7 +55,7 @@ module apb_ram (
                             pslverr <= 1'b1;
                         end
                     end
-                    else(!pwrite && penable) begin
+                    else if (!pwrite && penable) begin
                         if(paddr < 32) begin
                             prdata <= mem[paddr];
                             state <= transfer;
@@ -82,3 +82,16 @@ module apb_ram (
         end
     end
 endmodule
+//////////////////////////////////////////////////////////////
+interface apb_if();
+    logic presetn;
+    logic pclk;
+    logic psel;
+    logic penable;
+    logic pwrite;
+    logic [31:0] paddr;
+    logic [31:0] pwdata;
+    logic [31:0] prdata;
+    logic pready;
+    logic pslverr;
+endinterface

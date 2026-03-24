@@ -102,28 +102,28 @@
         <div class="control-group" style="flex: 1;">
             <label for="fmt">Fmt [31:29]</label>
             <select id="fmt" class="modern-select">
-                <option value="000">000 (3DW, No Data)</option>
-                <option value="001">001 (4DW, No Data)</option>
-                <option value="010">010 (3DW, w/ Data)</option>
-                <option value="011">011 (4DW, w/ Data)</option>
-                <option value="100">100 (TLP Prefix)</option>
+                <option value="000">000 (3DW, No Data) [0x0]</option>
+                <option value="001">001 (4DW, No Data) [0x1]</option>
+                <option value="010">010 (3DW, w/ Data) [0x2]</option>
+                <option value="011">011 (4DW, w/ Data) [0x3]</option>
+                <option value="100">100 (TLP Prefix) [0x4]</option>
             </select>
         </div>
 
         <div class="control-group" style="flex: 1;">
             <label for="type">Type [28:24]</label>
             <select id="type" class="modern-select">
-                <option value="00000">00000 (Memory)</option>
-                <option value="00001">00001 (Locked)</option>
-                <option value="00010">00010 (IO Read)</option>
-                <option value="00011">00011 (IO Write)</option>
-                <option value="00100">00100 (CfgRd0)</option>
-                <option value="00101">00101 (CfgWr0)</option>
-                <option value="00110">00110 (CfgRd1)</option>
-                <option value="00111">00111 (CfgWr1)</option>
-                <option value="01010">01010 (Cpl / CplD)</option>
-                <option value="01011">01011 (CplLk / CplDLk)</option>
-                <option value="10000">10xxx (Msg / MsgD)</option>
+                <option value="00000">00000 (Memory) [0x00]</option>
+                <option value="00001">00001 (Locked) [0x01]</option>
+                <option value="00010">00010 (IO Read) [0x02]</option>
+                <option value="00011">00011 (IO Write) [0x03]</option>
+                <option value="00100">00100 (CfgRd0) [0x04]</option>
+                <option value="00101">00101 (CfgWr0) [0x05]</option>
+                <option value="00110">00110 (CfgRd1) [0x06]</option>
+                <option value="00111">00111 (CfgWr1) [0x07]</option>
+                <option value="01010">01010 (Cpl / CplD) [0x0A]</option>
+                <option value="01011">01011 (CplLk / CplDLk) [0x0B]</option>
+                <option value="10000">10xxx (Msg / MsgD) [0x10-17]</option>
             </select>
         </div>
     </div>

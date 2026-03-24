@@ -13,7 +13,7 @@ endclass
 //////////////////////////////////////////////////////////////
 typedef enum bit [1:0] {readd = 0, writed = 1, rst = 2} oper_mode;
 //////////////////////////////////////////////////////////////
-class transaction extends uvm_object;
+class transaction extends uvm_sequence_item;
 
     rand oper_mode      op;
          logic          PWRITE;
@@ -223,10 +223,10 @@ class driver extends uvm_driver#(transaction);
         super.new(path, parent);
     endfunction
 
-    virtual function build_phase(uvm_phase phase);
+    virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         tr = transaction::type_id::create("tr");
-        if(!uvm_config_db::get(this, "", "vif", vif))
+        if(!uvm_config_db#(virtual apb_if)::get(this, "", "vif", vif))
             `uvm_error("drv", "Unable to access Interface");
     endfunction
 
@@ -248,15 +248,41 @@ class driver extends uvm_driver#(transaction);
         forever begin
             seq_item_port.get_next_item(tr);
             if(tr.op == rst) begin
-
+                vif.presetn  <= 1'b0;
+                vif.paddr    <= 'h0;
+                vif.pwdata   <= 'h0;
+                vif.pwrite   <= 'b0;
+                vif.psel     <= 'b0;
+                vif.penable  <= 'b0;
+                @(posedge vif.pclk);
             end
             else if(tr.op == writed) begin
-
+                vif.psel     <= 1'b1;
+                vif.paddr    <= tr.PADDR;
+                vif.pwdata   <= tr.PWDATA;
+                vif.presetn  <= 1'b1;
+                vif.pwrite   <= 1'b1;
+                @(posedge vif.pclk);
+                vif.penable  <= 1'b1;
+                `uvm_info("DRV", $sformatf("mode:%0s, addr:%0d, wdata:%0d, rdata:%0d, slverr:%0d", tr.op.name(), tr.PADDR, tr.PWDATA, tr.PRDATA, tr.PSLVERR), UVM_NONE);
+                @(negedge vif.pready);
+                vif.penable  <= 1'b0;
+                tr.PSLVERR = vif.pslverr;
             end
             else if(tr.op == readd) begin
-
+                vif.psel <= 1'b1;
+                vif.paddr <= tr.PADDR;
+                vif.presetn <= 1'b1;
+                vif.pwrite <= 1'b0;
+                @(posedge vif.pclk);
+                vif.penable <= 1'b1;
+                `uvm_info("DRV", $sformatf("mode:%0s, addr:%0d, wdata:%0d, rdata:%0d, slverr:%0d", tr.op.name(), tr.PADDR, tr.PWDATA, tr.PRDATA, tr.PSLVERR), UVM_NONE);
+                @(negedge vif.pready);
+                vif.penable <= 1'b0;
+                tr.PRDATA = vif.prdata;
+                tr.PSLVERR = vif.pslverr;
             end
-            seq_item_port.item_done(tr);
+            seq_item_port.item_done();
         end
     endtask
 
@@ -265,3 +291,217 @@ class driver extends uvm_driver#(transaction);
     endtask
 
 endclass
+//////////////////////////////////////////////////////////////
+class mon extends uvm_monitor;
+    `uvm_component_utils(mon)
+
+    uvm_analysis_port#(transaction) send;
+    virtual apb_if vif;
+    transaction tr;
+
+    function new(input string inst = "mon", uvm_component parent);
+        super.new(inst, parent);
+    endfunction
+
+    virtual function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        tr = transaction::type_id::create("tr");
+        send = new("send", this);
+        if(!uvm_config_db#(virtual apb_if)::get(this, "", "vif", vif))  // uvm_test_top.env.agent.drv.aif
+            `uvm_error("MON", "Unable to access Interface");
+    endfunction
+
+    virtual task run_phase(uvm_phase phase);
+        forever begin
+            @(posedge vif.pclk);
+            if(!vif.presetn) begin
+                tr.op = rst;
+                `uvm_info("MON", "SYSTEM RESET DETECTED", UVM_NONE);
+                send.write(tr);
+            end
+            else if(vif.presetn && vif.pwrite) begin
+                @(negedge vif.pready);
+                tr.op       = writed;
+                tr.PWDATA   = vif.pwdata;
+                tr.PADDR    = vif.paddr;
+                tr.PSLVERR  = vif.pslverr;
+                `uvm_info("MON", $sformatf("DATA WRITE addr:%0d, data:%0d slverr:%0d", tr.PADDR, tr.PWDATA, tr.PSLVERR), UVM_NONE);
+                send.write(tr);
+            end
+            else if(vif.presetn && !vif.pwrite) begin
+                @(negedge vif.pready);
+                tr.op       = readd;
+                tr.PRDATA   = vif.prdata;
+                tr.PADDR    = vif.paddr;
+                tr.PSLVERR  = vif.pslverr;
+                `uvm_info("MON", $sformatf("DATA WRITE addr:%0d, data:%0d slverr:%0d", tr.PADDR, tr.PWDATA, tr.PSLVERR), UVM_NONE);
+                send.write(tr);
+            end
+        end
+    endtask
+endclass
+//////////////////////////////////////////////////////////////
+class sco extends uvm_scoreboard;
+    `uvm_component_utils(sco);
+
+    uvm_analysis_imp#(transaction, sco) recv;
+    bit [31:0] arr[32] = '{default:0};
+    bit [31:0] addr = 0;
+    bit [31:0] data_rd = 0;
+
+    function new(input string inst = "sco", uvm_component parent = null);
+        super.new(inst, parent);
+    endfunction
+
+    virtual function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        recv = new("recv", this);
+    endfunction
+
+    virtual function void write(transaction tr);
+        if(tr.op == rst) begin
+            `uvm_info("SCO", "SYSTEM RESET DETECTED", UVM_NONE);
+        end
+        else if (tr.op == writed) begin
+            if(tr.PSLVERR == 1'b1) begin
+                `uvm_info("SCO", "SLV ERROR during WRITE OP", UVM_NONE);
+            end
+            else begin
+                arr[tr.PADDR] = tr.PWDATA;
+                `uvm_info("SCO", $sformatf("DATA WRITE OP addr:%0d, wdata:%0d arr_wr:%0d", tr.PADDR, tr.PWDATA, arr[tr.PADDR]), UVM_NONE);
+            end
+
+        end
+        else if (tr.op == readd) begin
+            if(tr.PSLVERR == 1'b1) begin
+                `uvm_info("SCO", "SLV ERROR during READ OP", UVM_NONE);
+            end
+            else begin
+                data_rd = arr[tr.PADDR];
+                if(data_rd == tr.PRDATA) begin
+                    `uvm_info("SCO", $sformatf("DATA MATCHED : addr:%0d, rdata:%0d", tr.PADDR, tr.PRDATA), UVM_NONE);
+                end
+                else begin
+                    `uvm_info("SCO", $sformatf("DATA FAILED  : addr:%0d, rdata:%0d data_rd:%0d", tr.PADDR, tr.PRDATA, data_rd), UVM_NONE);
+                end
+            end
+        end
+        $display("-------------------------------------------------------------------");
+    endfunction
+endclass
+//////////////////////////////////////////////////////////////
+class agent extends uvm_agent;
+    `uvm_component_utils(agent)
+
+    apb_config cfg;
+
+    function new(input string inst = "agent", uvm_component parent = null);
+        super.new(inst, parent);
+    endfunction
+    
+    mon m;
+    driver d;
+    uvm_sequencer#(transaction) seqr;
+
+    virtual function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        m = mon::type_id::create("m", this);
+        cfg = apb_config::type_id::create("cfg");
+        if(cfg.is_active == UVM_ACTIVE) begin
+            seqr = uvm_sequencer#(transaction)::type_id::create("seqr", this);
+            d = driver::type_id::create("d", this);
+        end
+    endfunction
+
+    virtual function void connect_phase(uvm_phase phase);
+        super.connect_phase(phase);
+        d.seq_item_port.connect(seqr.seq_item_export);
+    endfunction
+endclass
+//////////////////////////////////////////////////////////////
+class env extends uvm_env;
+    `uvm_component_utils(env)
+
+    function new(input string inst = "env", uvm_component parent);
+        super.new(inst, parent);
+    endfunction
+
+    agent a;
+    sco s;
+
+    virtual function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        a = agent::type_id::create("a", this);
+        s = sco::type_id::create("s", this);
+    endfunction
+
+    virtual function void connect_phase(uvm_phase phase);
+        super.connect_phase(phase);
+        a.m.send.connect(s.recv);
+    endfunction
+endclass
+//////////////////////////////////////////////////////////////
+class test extends uvm_test;
+    `uvm_component_utils(test)
+
+    function new(input string inst = "test", uvm_component parent);
+        super.new(inst, parent);
+    endfunction
+
+    env e;
+    write_read wrrd;
+    writeb_readb wrrdb;
+    write_data wdata;
+    read_data rdata;
+    write_err werr;
+    read_err rerr;
+    reset_dut rstdut;
+
+    virtual function void build_phase(uvm_phase phase);
+        e       = env::type_id::create("e", this);
+        wrrd    = write_read::type_id::create("wrrd");
+        wrrdb   = writeb_readb::type_id::create("wrrdb");
+        wdata   = write_data::type_id::create("wdata");
+        rdata   = read_data::type_id::create("rdata");
+        werr    = write_err::type_id::create("werr");
+        rerr    = read_err::type_id::create("rerr");
+        rstdut  = reset_dut::type_id::create("rstdut") ;
+    endfunction
+
+    virtual task run_phase(uvm_phase phase);
+        phase.raise_objection(this);
+        wrrdb.start(e.a.seqr);
+        #20;
+        phase.drop_objection(this);
+    endtask
+endclass
+//////////////////////////////////////////////////////////////
+module tb;
+    apb_if vif();
+    apb_ram dut (.presetn(vif.presetn), 
+                .pclk(vif.pclk), 
+                .psel(vif.psel), 
+                .penable(vif.penable), 
+                .pwrite(vif.pwrite), 
+                .paddr(vif.paddr), 
+                .pwdata(vif.pwdata), 
+                .prdata(vif.prdata), 
+                .pready(vif.pready), 
+                .pslverr(vif.pslverr));
+
+    initial begin
+        vif.pclk <= 0;
+    end
+    
+    always #10 vif.pclk = ~vif.pclk;
+
+    initial begin
+        uvm_config_db#(virtual apb_if)::set(null, "*", "vif", vif);
+        run_test("test");
+    end
+
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars;
+    end
+endmodule
